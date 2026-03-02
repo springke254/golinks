@@ -15,6 +15,10 @@ class ShortUrl(
     @JoinColumn(name = "user_id", nullable = false)
     val user: User,
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "workspace_id")
+    var workspace: Workspace? = null,
+
     @Column(nullable = false, unique = true, length = 50)
     var slug: String,
 

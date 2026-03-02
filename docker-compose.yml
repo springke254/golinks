@@ -8,9 +8,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: golinks
-      POSTGRES_USER: golinks
-      POSTGRES_PASSWORD: golinks
+      POSTGRES_DB: ${POSTGRES_DB:-golinks}
+      POSTGRES_USER: ${POSTGRES_USER:-golinks}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-golinks}
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -22,8 +22,8 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-guest}
     volumes:
       - rabbitmqdata:/var/lib/rabbitmq
 

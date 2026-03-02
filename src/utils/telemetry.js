@@ -6,7 +6,7 @@
 
 const BUFFER = [];
 const FLUSH_INTERVAL = 30_000; // 30 seconds
-const ENDPOINT = '/api/v1/analytics/telemetry';
+const ENDPOINT = (process.env.REACT_APP_API_URL || '/api/v1') + '/analytics/telemetry';
 
 function push(metric) {
   BUFFER.push({ ...metric, ts: Date.now() });

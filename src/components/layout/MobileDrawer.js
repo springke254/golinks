@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, LayoutDashboard, Link2, BarChart3, ScrollText, Settings, LogOut } from 'lucide-react';
 
 import Logo from '../ui/Logo';
+import WorkspaceSwitcher from '../workspace/WorkspaceSwitcher';
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -69,6 +70,9 @@ export default function MobileDrawer({ open, onClose }) {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Workspace switcher */}
+            <WorkspaceSwitcher />
 
             {/* Navigation */}
             <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">

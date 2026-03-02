@@ -36,3 +36,19 @@ class RateLimitExceededException(
     message: String = "Too many requests — please try again later",
     val retryAfterSeconds: Long = 60
 ) : RuntimeException(message)
+
+// ── Workspace Exceptions ─────────────────────────────────
+
+class WorkspaceNotFoundException(message: String = "Workspace not found") : RuntimeException(message)
+
+class InsufficientRoleException(message: String = "You don't have permission to perform this action") : RuntimeException(message)
+
+class InviteExpiredException(message: String = "This invite has expired") : RuntimeException(message)
+
+class InviteRevokedException(message: String = "This invite has been revoked") : RuntimeException(message)
+
+class AlreadyMemberException(message: String = "User is already a member of this workspace") : RuntimeException(message)
+
+class LastOwnerException(message: String = "Cannot remove the last owner — transfer ownership first") : RuntimeException(message)
+
+class DuplicateSlugWorkspaceException(message: String = "A workspace with this slug already exists") : RuntimeException(message)

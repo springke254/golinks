@@ -1,34 +1,47 @@
 import { useQuery } from '@tanstack/react-query';
 import * as analyticsService from '../services/analyticsService';
 
+// Helper: read active workspace ID for scoped query keys
+function getWsId() {
+  return localStorage.getItem('golinks_active_workspace_id') || null;
+}
+
 export function useAnalyticsSummary(from, to) {
+  const wsId = getWsId();
   return useQuery({
-    queryKey: ['analytics-summary', from, to],
+    queryKey: ['analytics-summary', wsId, from, to],
     queryFn: () => analyticsService.getAnalyticsSummary({ from, to }),
     staleTime: 60_000,
+    enabled: !!wsId,
   });
 }
 
 export function useAnalyticsTimeSeries(from, to) {
+  const wsId = getWsId();
   return useQuery({
-    queryKey: ['analytics-timeseries', from, to],
+    queryKey: ['analytics-timeseries', wsId, from, to],
     queryFn: () => analyticsService.getAnalyticsTimeSeries({ from, to }),
     staleTime: 60_000,
+    enabled: !!wsId,
   });
 }
 
 export function useAnalyticsReferrers(from, to, limit = 10) {
+  const wsId = getWsId();
   return useQuery({
-    queryKey: ['analytics-referrers', from, to, limit],
+    queryKey: ['analytics-referrers', wsId, from, to, limit],
     queryFn: () => analyticsService.getAnalyticsReferrers({ from, to, limit }),
     staleTime: 60_000,
+    enabled: !!wsId,
   });
 }
 
 export function useAnalyticsTopLinks(from, to, limit = 10) {
+  const wsId = getWsId();
   return useQuery({
-    queryKey: ['analytics-top-links', from, to, limit],
+    queryKey: ['analytics-top-links', wsId, from, to, limit],
     queryFn: () => analyticsService.getAnalyticsTopLinks({ from, to, limit }),
     staleTime: 60_000,
+    enabled: !!wsId,
   });
 }

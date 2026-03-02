@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { KeyRound, Link2 } from 'lucide-react';
+import { KeyRound, Link2, Users, Building2 } from 'lucide-react';
 
 import ActiveSessions from '../../components/auth/ActiveSessions';
 import LinkedAccounts from '../../components/auth/LinkedAccounts';
+import TeamMembers from '../../components/workspace/TeamMembers';
+import WorkspaceSettings from '../../components/workspace/WorkspaceSettings';
 
 const TABS = [
   { key: 'sessions', label: 'Sessions', icon: KeyRound },
   { key: 'linked', label: 'Linked Accounts', icon: Link2 },
+  { key: 'team', label: 'Team', icon: Users },
+  { key: 'workspace', label: 'Workspace', icon: Building2 },
 ];
 
 export default function SettingsPage() {
@@ -17,11 +21,11 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-text-primary">Settings</h1>
-        <p className="text-text-secondary mt-1">Manage your account security and integrations.</p>
+        <p className="text-text-secondary mt-1">Manage your account, team, and workspace.</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b-2 border-border-strong">
+      <div className="flex border-b-2 border-border-strong overflow-x-auto">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -30,7 +34,7 @@ export default function SettingsPage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`
-                flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-[2px] transition-colors
+                flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-[2px] transition-colors whitespace-nowrap
                 ${
                   isActive
                     ? 'text-primary border-primary'
@@ -54,6 +58,8 @@ export default function SettingsPage() {
       >
         {activeTab === 'sessions' && <ActiveSessions />}
         {activeTab === 'linked' && <LinkedAccounts />}
+        {activeTab === 'team' && <TeamMembers />}
+        {activeTab === 'workspace' && <WorkspaceSettings />}
       </motion.div>
     </div>
   );

@@ -15,6 +15,17 @@ class AnalyticsController(
     private val analyticsService: AnalyticsService
 ) {
 
+    /**
+     * Receives batched Core Web Vitals telemetry from the frontend.
+     * Uses navigator.sendBeacon() which cannot attach auth headers,
+     * so this endpoint is publicly accessible (permitAll in SecurityConfig).
+     */
+    @PostMapping("/telemetry")
+    fun receiveTelemetry(@RequestBody metrics: List<Map<String, Any>>): ResponseEntity<Void> {
+        // Accept silently — telemetry data can be processed async if needed
+        return ResponseEntity.ok().build()
+    }
+
     @GetMapping("/summary")
     fun getSummary(
         @RequestParam(required = false) from: String?,
