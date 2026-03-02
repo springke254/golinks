@@ -30,10 +30,11 @@ class LinkController(
     fun getLinks(
         @RequestParam(required = false) search: String?,
         @RequestParam(required = false) cursor: String?,
+        @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") limit: Int
     ): ResponseEntity<PaginatedLinksResponse> {
         val userId = getCurrentUserId()
-        val response = linkService.getLinks(userId, search, cursor, limit)
+        val response = linkService.getLinks(userId, search, cursor, page, limit)
         return ResponseEntity.ok(response)
     }
 

@@ -22,6 +22,21 @@ export function useLinks(filters = {}) {
   });
 }
 
+export function useLinksPage(filters = {}, page = 0, size = 20) {
+  const wsId = getWsId();
+  return useQuery({
+    queryKey: ['links-page', wsId, filters, page, size],
+    queryFn: () =>
+      linkService.getLinks({
+        ...filters,
+        page,
+        limit: size,
+      }),
+    keepPreviousData: true,
+    enabled: !!wsId,
+  });
+}
+
 export function useLinkStats() {
   const wsId = getWsId();
   return useQuery({
@@ -75,6 +90,7 @@ export function useCreateLink() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['links'] });
+      queryClient.invalidateQueries({ queryKey: ['links-page'] });
       queryClient.invalidateQueries({ queryKey: ['link-stats'] });
     },
   });
@@ -111,6 +127,7 @@ export function useUpdateLink() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['links'] });
+      queryClient.invalidateQueries({ queryKey: ['links-page'] });
       queryClient.invalidateQueries({ queryKey: ['link-stats'] });
     },
   });
@@ -147,6 +164,7 @@ export function useDeleteLink() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['links'] });
+      queryClient.invalidateQueries({ queryKey: ['links-page'] });
       queryClient.invalidateQueries({ queryKey: ['link-stats'] });
     },
   });
@@ -158,6 +176,7 @@ export function useBulkDeleteLinks() {
     mutationFn: (ids) => linkService.bulkDeleteLinks(ids),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['links'] });
+      queryClient.invalidateQueries({ queryKey: ['links-page'] });
       queryClient.invalidateQueries({ queryKey: ['link-stats'] });
     },
   });
@@ -187,6 +206,7 @@ export function useBulkImport() {
     mutationFn: (file) => linkService.bulkImportLinks(file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['links'] });
+      queryClient.invalidateQueries({ queryKey: ['links-page'] });
       queryClient.invalidateQueries({ queryKey: ['link-stats'] });
     },
   });

@@ -86,6 +86,15 @@ export default function AuditPage() {
     setPage(0);
   };
 
+  const currentPage = data?.page ?? page;
+  const pageNumbers = useMemo(() => {
+    const totalPages = data?.totalPages ?? 0;
+    if (totalPages <= 1) return [];
+    const start = Math.max(0, currentPage - 2);
+    const end = Math.min(totalPages - 1, currentPage + 2);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [currentPage, data?.totalPages]);
+
   return (
     <motion.div
       variants={container}
@@ -297,7 +306,7 @@ export default function AuditPage() {
             <span className="text-xs text-text-muted">
               Page {data.page + 1} of {data.totalPages}
             </span>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
               <button
                 disabled={data.page === 0}
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
@@ -305,6 +314,26 @@ export default function AuditPage() {
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Prev
               </button>
+
+              <div className="flex items-center gap-1">
+                {pageNumbers.map((pageNumber) => {
+                  const isActive = pageNumber === currentPage;
+                  return (
+                    <button
+                      key={pageNumber}
+                      onClick={() => setPage(pageNumber)}
+                      className={`min-w-8 h-8 px-2 text-xs font-bold border-2 transition-colors ${
+                        isActive
+                          ? 'bg-primary text-text-inverse border-primary'
+                          : 'border-border-strong text-text-secondary hover:bg-dark-elevated'
+                      }`}
+                    >
+                      {pageNumber + 1}
+                    </button>
+                  );
+                })}
+              </div>
+
               <button
                 disabled={data.page + 1 >= data.totalPages}
                 onClick={() => setPage((p) => p + 1)}

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link2, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
+import { Link2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LinkRow from './LinkRow';
 import LinkCard from './LinkCard';
@@ -9,12 +9,14 @@ import BulkActions from './BulkActions';
 import EditLinkModal from './EditLinkModal';
 import QRCodeModal from './QRCodeModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
-import Button from '../ui/Button';
 import Skeleton from '../ui/Skeleton';
-import { useLinks, useUpdateLink, useDeleteLink, useBulkDeleteLinks } from '../../hooks/useLinks';
+import { useLinksPage, useUpdateLink, useDeleteLink, useBulkDeleteLinks } from '../../hooks/useLinks';
+
+const PAGE_SIZE = 20;
 
 export default function LinkList() {
   const [filters, setFilters] = useState({});
+  const [page, setPage] = useState(0);
   const [selected, setSelected] = useState(new Set());
   const [editLink, setEditLink] = useState(null);
   const [qrLink, setQrLink] = useState(null);
@@ -26,19 +28,37 @@ export default function LinkList() {
     isLoading,
     isError,
     error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useLinks(filters);
+  } = useLinksPage(filters, page, PAGE_SIZE);
 
   const updateLink = useUpdateLink();
   const deleteLink = useDeleteLink();
   const bulkDelete = useBulkDeleteLinks();
 
-  const allLinks = useMemo(
-    () => data?.pages?.flatMap((page) => page.items) ?? [],
-    [data]
+  const allLinks = useMemo(() => data?.items ?? [], [data]);
+  const totalPages = data?.totalPages ?? 0;
+  const currentPage = data?.page ?? page;
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 1) return [];
+    const start = Math.max(0, currentPage - 2);
+    const end = Math.min(totalPages - 1, currentPage + 2);
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }, [currentPage, totalPages]);
+
+  const handlePageChange = useCallback(
+    (nextPage) => {
+      if (nextPage < 0 || nextPage >= totalPages || nextPage === currentPage) return;
+      setPage(nextPage);
+      setSelected(new Set());
+    },
+    [currentPage, totalPages]
   );
+
+  const handleFiltersChange = useCallback((nextFilters) => {
+    setFilters(nextFilters);
+    setPage(0);
+    setSelected(new Set());
+  }, []);
 
   const handleSelect = useCallback((id, checked) => {
     setSelected((prev) => {
@@ -148,7 +168,7 @@ export default function LinkList() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <LinkFilters filters={filters} onChange={setFilters} />
+      <LinkFilters filters={filters} onChange={handleFiltersChange} />
 
       {/* Bulk Actions */}
       <BulkActions
@@ -263,24 +283,48 @@ export default function LinkList() {
         </div>
       )}
 
-      {/* Load more */}
-      {hasNextPage && (
-        <div className="flex justify-center pt-2">
-          <Button
-            variant="secondary"
-            onClick={() => fetchNextPage()}
-            loading={isFetchingNextPage}
-          >
-            <ChevronDown className="w-4 h-4" />
-            Load More
-          </Button>
-        </div>
-      )}
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-1">
+          <span className="text-xs text-text-muted">
+            Page {currentPage + 1} of {totalPages}
+          </span>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <button
+              disabled={currentPage === 0}
+              onClick={() => handlePageChange(currentPage - 1)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium border-2 border-border-strong text-text-secondary hover:bg-dark-elevated disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Prev
+            </button>
 
-      {/* Loading indicator for fetching next */}
-      {isFetchingNextPage && (
-        <div className="flex justify-center py-4">
-          <Loader2 className="w-5 h-5 animate-spin text-text-muted" />
+            <div className="flex items-center gap-1">
+              {pageNumbers.map((pageNumber) => {
+                const isActive = pageNumber === currentPage;
+                return (
+                  <button
+                    key={pageNumber}
+                    onClick={() => handlePageChange(pageNumber)}
+                    className={`min-w-8 h-8 px-2 text-xs font-bold border-2 transition-colors ${
+                      isActive
+                        ? 'bg-primary text-text-inverse border-primary'
+                        : 'border-border-strong text-text-secondary hover:bg-dark-elevated'
+                    }`}
+                  >
+                    {pageNumber + 1}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              disabled={currentPage + 1 >= totalPages}
+              onClick={() => handlePageChange(currentPage + 1)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium border-2 border-border-strong text-text-secondary hover:bg-dark-elevated disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
 

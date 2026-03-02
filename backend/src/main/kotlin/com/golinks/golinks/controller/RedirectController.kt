@@ -214,7 +214,7 @@ class RedirectController(
                 button:disabled { opacity: 0.85; cursor: not-allowed; }
                 .error { color: #E02424; font-size: 0.75rem; margin-top: 0.5rem; display: none; }
                 .logo { color: #1DB954; font-weight: 700; font-size: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
-                .spinner { width: 0.875rem; height: 0.875rem; border: 2px solid rgba(25, 20, 20, 0.25); border-top-color: #191414; border-radius: 9999px; display: none; animation: spin 0.8s linear infinite; }
+                .spinner { width: 0.875rem; height: 0.875rem; border: 2px solid rgba(25, 20, 20, 0.25); border-top-color: #191414; border-radius: 9999px !important; display: none; animation: spin 0.8s linear infinite; }
                 button.loading .spinner { display: inline-block; }
                 @keyframes spin { to { transform: rotate(360deg); } }
             </style>
