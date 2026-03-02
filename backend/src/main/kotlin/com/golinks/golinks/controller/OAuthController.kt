@@ -45,6 +45,7 @@ class OAuthController(
 
     private fun getCurrentUserId(): UUID {
         val authentication = SecurityContextHolder.getContext().authentication
-        return UUID.fromString(authentication.principal as String)
+        val username = (authentication.principal as org.springframework.security.core.userdetails.UserDetails).username
+        return UUID.fromString(username)
     }
 }

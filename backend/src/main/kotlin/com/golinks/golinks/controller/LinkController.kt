@@ -97,10 +97,10 @@ class LinkController(
 
     private fun getCurrentUserId(): UUID {
         val authentication = SecurityContextHolder.getContext().authentication
-        val principal = authentication?.principal as? String
+        val username = (authentication?.principal as? org.springframework.security.core.userdetails.UserDetails)?.username
             ?: throw com.golinks.golinks.exception.InvalidCredentialsException("Authentication required")
         return try {
-            UUID.fromString(principal)
+            UUID.fromString(username)
         } catch (ex: IllegalArgumentException) {
             throw com.golinks.golinks.exception.InvalidCredentialsException("Invalid authentication token")
         }
