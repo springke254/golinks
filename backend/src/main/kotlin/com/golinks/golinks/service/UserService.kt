@@ -38,7 +38,11 @@ class UserService(
         return authService.toUserResponse(savedUser)
     }
 
-    fun getActiveSessions(userId: UUID, currentTokenHash: String?): List<SessionResponse> {
+    fun getActiveSessions(userId: UUID, currentRefreshToken: String?): List<SessionResponse> {
+        val currentTokenHash = currentRefreshToken
+            ?.takeIf { it.isNotBlank() }
+            ?.let { tokenService.hashToken(it) }
+
         val sessions = tokenService.getActiveSessions(userId)
         return sessions.map { token ->
             SessionResponse(

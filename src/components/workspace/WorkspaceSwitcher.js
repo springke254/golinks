@@ -4,14 +4,7 @@ import { ChevronDown, Check, Plus, Search, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useWorkspace } from '../../hooks/useWorkspace';
-import { ROUTES, WORKSPACE_ROLES } from '../../utils/constants';
-import Badge from '../ui/Badge';
-
-const ROLE_COLORS = {
-  [WORKSPACE_ROLES.OWNER]: 'primary',
-  [WORKSPACE_ROLES.ADMIN]: 'info',
-  [WORKSPACE_ROLES.MEMBER]: 'default',
-};
+import { ROUTES } from '../../utils/constants';
 
 export default function WorkspaceSwitcher({ collapsed = false }) {
   const [open, setOpen] = useState(false);
@@ -77,7 +70,7 @@ export default function WorkspaceSwitcher({ collapsed = false }) {
       <div className="px-2 py-3 border-b-2 border-border-strong">
         <button
           onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-center p-2 bg-dark-elevated border-2 border-border-strong hover:border-primary transition-colors"
+          className="w-full flex items-center justify-center p-2 bg-dark-elevated border-2 border-border-strong hover:border-primary transition-colors !rounded-xl"
           title={activeWorkspace.name}
         >
           <Building2 className="w-5 h-5 text-primary shrink-0" />
@@ -106,7 +99,7 @@ export default function WorkspaceSwitcher({ collapsed = false }) {
     <div className="px-3 py-3 border-b-2 border-border-strong relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-3 py-2 bg-dark-elevated border-2 border-border-strong hover:border-primary transition-colors text-left"
+        className="w-full flex items-center gap-2 px-3 py-2 bg-dark-elevated border-2 border-border-strong hover:border-primary transition-colors text-left !rounded-xl"
       >
         <Building2 className="w-4 h-4 text-primary shrink-0" />
         <span className="flex-1 text-sm font-semibold text-text-primary truncate">
@@ -144,7 +137,7 @@ function DropdownPanel({ workspaces, activeWorkspace, search, onSearchChange, on
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -4 }}
       transition={{ duration: 0.15 }}
-      className="bg-dark-card border-2 border-border-strong shadow-xl min-w-[220px]"
+      className="bg-dark-card border-2 border-border-strong shadow-xl min-w-[220px] !rounded-xl overflow-hidden"
     >
       {/* Search */}
       <div className="p-2 border-b-2 border-border-strong">
@@ -155,7 +148,7 @@ function DropdownPanel({ workspaces, activeWorkspace, search, onSearchChange, on
             placeholder="Search workspaces..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full bg-dark-elevated text-text-primary placeholder-text-muted border-2 border-border-strong rounded-none pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:border-primary transition-colors"
+            className="w-full bg-dark-elevated text-text-primary placeholder-text-muted border-2 border-border-strong !rounded-xl pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:border-primary transition-colors"
             autoFocus
           />
         </div>

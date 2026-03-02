@@ -113,7 +113,7 @@ export default function CreateLinkModal({ open, onClose }) {
   };
 
   return (
-    <Modal open={open} onClose={handleClose} title="Create New Link" maxWidth="lg">
+    <Modal open={open} onClose={handleClose} title="Create New Link" maxWidth="xl">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <Input
           label="Destination URL"

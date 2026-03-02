@@ -4,11 +4,11 @@ import com.golinks.golinks.dto.PasswordChallengeRequest
 import com.golinks.golinks.exception.LinkConsumedException
 import com.golinks.golinks.exception.LinkExpiredException
 import com.golinks.golinks.exception.LinkNotFoundException
-import com.golinks.golinks.exception.RateLimitExceededException
 import com.golinks.golinks.security.JwtTokenProvider
 import com.golinks.golinks.service.AbuseDetectionService
 import com.golinks.golinks.service.RateLimitService
 import com.golinks.golinks.service.RedirectService
+import com.golinks.golinks.service.TokenService
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.http.CacheControl
@@ -17,12 +17,15 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.net.URI
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 @RestController
 @RequestMapping("/go")
 class RedirectController(
     private val redirectService: RedirectService,
     private val jwtTokenProvider: JwtTokenProvider,
+    private val tokenService: TokenService,
     private val rateLimitService: RateLimitService,
     private val abuseDetectionService: AbuseDetectionService
 ) {
@@ -52,12 +55,14 @@ class RedirectController(
                 return fastRedirect(destination)
             }
 
-            // Private link — requires JWT
+            // Private link — requires authenticated session
             if (shortUrl.isPrivate) {
-                val token = extractToken(request)
-                if (token == null || !jwtTokenProvider.validateToken(token)) {
+                if (!isAuthenticatedRequest(request)) {
+                    val queryPart = request.queryString?.takeIf { it.isNotBlank() }?.let { "?$it" } ?: ""
+                    val redirectTarget = "/go/$slug$queryPart"
+                    val encodedRedirect = URLEncoder.encode(redirectTarget, StandardCharsets.UTF_8)
                     return ResponseEntity.status(HttpStatus.FOUND)
-                        .location(URI.create("/login?redirect=/go/$slug"))
+                        .location(URI.create("/login?redirect=$encodedRedirect"))
                         .build<Any>()
                 }
             }
@@ -122,6 +127,11 @@ class RedirectController(
         return try {
             val shortUrl = redirectService.resolveSlug(slug)
 
+            if (shortUrl.isPrivate && !isAuthenticatedRequest(request)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(mapOf("success" to false, "message" to "Authentication required"))
+            }
+
             if (!shortUrl.isPasswordProtected) {
                 return ResponseEntity.status(HttpStatus.FOUND)
                     .location(URI.create(shortUrl.destinationUrl))
@@ -146,7 +156,24 @@ class RedirectController(
         }
     }
 
-    private fun extractToken(request: HttpServletRequest): String? {
+    private fun isAuthenticatedRequest(request: HttpServletRequest): Boolean {
+        val token = extractAccessToken(request)
+        if (token != null && jwtTokenProvider.validateToken(token)) {
+            return true
+        }
+
+        val refreshToken = request.cookies?.find { it.name == "refresh_token" }?.value
+        if (!refreshToken.isNullOrBlank()) {
+            val refreshSession = tokenService.findRefreshTokenByRawToken(refreshToken)
+            if (refreshSession != null && refreshSession.isUsable()) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private fun extractAccessToken(request: HttpServletRequest): String? {
         val header = request.getHeader("Authorization")
         if (header != null && header.startsWith("Bearer ")) {
             return header.substring(7)
