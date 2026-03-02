@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -16,6 +16,7 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     register,
@@ -35,7 +36,11 @@ export default function LoginForm() {
     try {
       await login(data);
       toast.success('Welcome back!');
-      navigate(ROUTES.DASHBOARD);
+      const redirectParam = new URLSearchParams(location.search).get('redirect');
+      const safeRedirect = redirectParam && redirectParam.startsWith('/')
+        ? redirectParam
+        : ROUTES.DASHBOARD;
+      navigate(safeRedirect, { replace: true });
     } catch (err) {
       if (err.response?.status === 429) {
         const retryAfter = err.response.data?.retryAfter || 60;

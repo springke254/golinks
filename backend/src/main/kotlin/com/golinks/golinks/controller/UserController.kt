@@ -31,7 +31,7 @@ class UserController(
         @CookieValue("refresh_token", required = false) refreshToken: String?
     ): ResponseEntity<List<SessionResponse>> {
         val userId = getCurrentUserId()
-        return ResponseEntity.ok(userService.getActiveSessions(userId, null))
+        return ResponseEntity.ok(userService.getActiveSessions(userId, refreshToken))
     }
 
     @DeleteMapping("/me/sessions/{sessionId}")

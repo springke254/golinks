@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
 
@@ -64,6 +64,7 @@ function ProtectedRoute() {
 /** Route guard — redirects authenticated users to dashboard */
 function GuestRoute() {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -74,7 +75,11 @@ function GuestRoute() {
   }
 
   if (isAuthenticated) {
-    return <Navigate to={ROUTES.DASHBOARD} replace />;
+    const redirectParam = new URLSearchParams(location.search).get('redirect');
+    const safeRedirect = redirectParam && redirectParam.startsWith('/')
+      ? redirectParam
+      : ROUTES.DASHBOARD;
+    return <Navigate to={safeRedirect} replace />;
   }
 
   return <Outlet />;

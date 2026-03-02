@@ -19,6 +19,7 @@ class AuthController(
     companion object {
         private const val REFRESH_TOKEN_COOKIE = "refresh_token"
         private const val REFRESH_TOKEN_MAX_AGE = 7L * 24 * 60 * 60 // 7 days in seconds
+        private const val LEGACY_REFRESH_TOKEN_PATH = "/api/v1/auth"
     }
 
     @PostMapping("/signup")
@@ -41,6 +42,7 @@ class AuthController(
         // Set refresh token as httpOnly, secure cookie
         val cookie = buildRefreshTokenCookie(refreshToken, REFRESH_TOKEN_MAX_AGE)
         httpResponse.addHeader("Set-Cookie", cookie.toString())
+        httpResponse.addHeader("Set-Cookie", buildLegacyRefreshTokenClearCookie().toString())
 
         return ResponseEntity.ok(tokenResponse)
     }
@@ -63,6 +65,7 @@ class AuthController(
         // Rotate: set new refresh token cookie
         val cookie = buildRefreshTokenCookie(newRefreshToken, REFRESH_TOKEN_MAX_AGE)
         httpResponse.addHeader("Set-Cookie", cookie.toString())
+        httpResponse.addHeader("Set-Cookie", buildLegacyRefreshTokenClearCookie().toString())
 
         return ResponseEntity.ok(tokenResponse)
     }
@@ -77,6 +80,7 @@ class AuthController(
         // Clear the refresh token cookie
         val cookie = buildRefreshTokenCookie("", 0)
         httpResponse.addHeader("Set-Cookie", cookie.toString())
+        httpResponse.addHeader("Set-Cookie", buildLegacyRefreshTokenClearCookie().toString())
 
         return ResponseEntity.ok(MessageResponse("Logged out successfully"))
     }
@@ -95,6 +99,7 @@ class AuthController(
         // Clear the refresh token cookie
         val cookie = buildRefreshTokenCookie("", 0)
         httpResponse.addHeader("Set-Cookie", cookie.toString())
+        httpResponse.addHeader("Set-Cookie", buildLegacyRefreshTokenClearCookie().toString())
 
         return ResponseEntity.ok(MessageResponse("All sessions revoked"))
     }
@@ -121,8 +126,18 @@ class AuthController(
         return ResponseCookie.from(REFRESH_TOKEN_COOKIE, value)
             .httpOnly(true)
             .secure(false) // Set to true in production with HTTPS
-            .path("/api/v1/auth")
+            .path("/")
             .maxAge(maxAge)
+            .sameSite("Strict")
+            .build()
+    }
+
+    private fun buildLegacyRefreshTokenClearCookie(): ResponseCookie {
+        return ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
+            .httpOnly(true)
+            .secure(false)
+            .path(LEGACY_REFRESH_TOKEN_PATH)
+            .maxAge(0)
             .sameSite("Strict")
             .build()
     }

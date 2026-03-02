@@ -10,6 +10,7 @@ import {
   User,
   Globe,
   Monitor,
+  AlertTriangle,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -73,7 +74,7 @@ export default function AuditPage() {
     return p;
   }, [page, filters]);
 
-  const { data, isLoading } = useAuditLogs(params);
+  const { data, isLoading, isError, error } = useAuditLogs(params);
   const { data: actionsData } = useAuditActions();
 
   const handleFilterChange = (key, value) => {
@@ -177,6 +178,14 @@ export default function AuditPage() {
             {[...Array(6)].map((_, i) => (
               <Skeleton key={i} className="h-12 w-full" />
             ))}
+          </div>
+        ) : isError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-danger">
+            <AlertTriangle className="w-10 h-10 mb-3 opacity-70" />
+            <p className="font-medium">Failed to load audit events</p>
+            <p className="text-xs mt-1 text-text-muted">
+              {error?.response?.data?.message || 'Please try again in a moment'}
+            </p>
           </div>
         ) : !data?.items?.length ? (
           <div className="flex flex-col items-center justify-center py-16 text-text-muted">

@@ -1,3 +1,5 @@
 2026-03-02 18:46:55.765 [rid=cb686fa9] action=LINK_CREATED resource=LINK userId=7e1e729d-4696-4a1e-b28e-7dbaf10afb01 resourceId=5b0ee01a-57fc-4a24-b386-8002e89db9f2 ip=- details={"slug":"Awtw4wq","destinationUrl":"https://youtu.be/CFJIdPz9zXk?si=gRJfwY5537usU1i2"}
 2026-03-02 18:47:22.161 [rid=2a7f2dc9] action=LINK_CREATED resource=LINK userId=7e1e729d-4696-4a1e-b28e-7dbaf10afb01 resourceId=8123e08e-a6e4-48c3-a549-18b27245e072 ip=- details={"slug":"DXC98hX","destinationUrl":"https://youtu.be/CFJIdPz9zXk?si=gRJfwY5537usU1i2"}
 2026-03-02 18:56:20.479 [rid=d6e08a60] action=LINK_BULK_DELETED resource=LINK userId=7e1e729d-4696-4a1e-b28e-7dbaf10afb01 resourceId=8123e08e-a6e4-48c3-a549-18b27245e072 ip=- details={}
+2026-03-02 20:29:05.705 [rid=77cc887b] action=LINK_CREATED resource=LINK userId=7e1e729d-4696-4a1e-b28e-7dbaf10afb01 resourceId=a2d88004-c045-4c0f-930c-f1830dc26407 ip=- details={"slug":"AzM74wh","destinationUrl":"https://youtu.be/lAwYQdwVfPA?si=aEX8a7UcwLufun8l"}
+2026-03-02 20:30:21.842 [rid=0f34881f] action=LINK_UPDATED resource=LINK userId=7e1e729d-4696-4a1e-b28e-7dbaf10afb01 resourceId=a2d88004-c045-4c0f-930c-f1830dc26407 ip=- details={"slug":"AzM74wh"}
