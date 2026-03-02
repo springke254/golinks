@@ -23,6 +23,7 @@ class WorkspaceMembershipService(
 
     private val logger = LoggerFactory.getLogger(WorkspaceMembershipService::class.java)
 
+    @Transactional(readOnly = true)
     fun getMembers(workspaceId: UUID, page: Int, size: Int, userId: UUID): PaginatedMembersResponse {
         // Verify the requesting user is a member
         membershipRepository.findByWorkspaceIdAndUserIdAndIsActiveTrue(workspaceId, userId)

@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Building2, Link2, Loader2, Check, X } from 'lucide-react';
+import { Building2, Link2, Loader2, Check, X, AlertTriangle, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { createWorkspaceSchema, nameToSlug } from '../../schemas/workspaceSchemas';
@@ -18,8 +18,15 @@ import RateLimitBanner from '../../components/ui/RateLimitBanner';
 export default function OnboardingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [slugStatus, setSlugStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
-  const { onWorkspaceCreated } = useWorkspace();
+  const { onWorkspaceCreated, hasWorkspace, isLoading: wsLoading, loadError, retryInit } = useWorkspace();
   const navigate = useNavigate();
+
+  // If user already has a workspace, redirect to dashboard
+  useEffect(() => {
+    if (!wsLoading && hasWorkspace) {
+      navigate(ROUTES.DASHBOARD, { replace: true });
+    }
+  }, [wsLoading, hasWorkspace, navigate]);
 
   const {
     register,
@@ -79,7 +86,8 @@ export default function OnboardingPage() {
       const workspace = await createWorkspace(data);
       await onWorkspaceCreated(workspace);
       toast.success('Workspace created! Welcome aboard.');
-      navigate(ROUTES.DASHBOARD);
+      // Navigation is handled by the useEffect that watches hasWorkspace
+      // This ensures the context has fully propagated before routing
     } catch (err) {
       const message = err.response?.data?.message || 'Failed to create workspace';
       toast.error(message);
@@ -157,6 +165,36 @@ export default function OnboardingPage() {
             >
               <Logo size="xl" />
             </motion.div>
+
+            {/* Error banner — shown when workspace loading failed */}
+            {loadError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-6 bg-warning/10 border-2 border-warning/30 p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <p className="text-sm font-semibold text-text-primary">
+                      We couldn't load your workspaces
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      You may already have a workspace. A connection issue prevented us from checking.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={retryInit}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Retry loading
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* Title */}
             <motion.div

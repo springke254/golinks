@@ -60,9 +60,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // --- 401 Unauthorized (or 403 from expired/missing token) with silent refresh ---
+    // --- 401 Unauthorized with silent token refresh ---
+    // Only retry on 401 (unauthenticated). 403 means "forbidden" — the token
+    // is valid but the user lacks permissions; refreshing won't help.
     if (
-      (error.response?.status === 401 || error.response?.status === 403) &&
+      error.response?.status === 401 &&
       !originalRequest._retry &&
       !originalRequest.url?.includes('/auth/login') &&
       !originalRequest.url?.includes('/auth/signup') &&

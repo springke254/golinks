@@ -127,6 +127,10 @@ data class CreateWorkspaceRequest(
 
     @field:NotBlank(message = "Slug is required")
     @field:Size(min = 3, max = 50, message = "Slug must be between 3 and 50 characters")
+    @field:jakarta.validation.constraints.Pattern(
+        regexp = "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+        message = "Slug must contain only lowercase letters, numbers, and hyphens"
+    )
     val slug: String,
 
     @field:Size(max = 500, message = "Description must be at most 500 characters")

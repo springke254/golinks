@@ -42,19 +42,20 @@ class WorkspaceService(
         )
 
         // Automatically make the creator an OWNER
-        membershipRepository.save(
-            WorkspaceMembership(
-                workspace = workspace,
-                user = user,
-                role = WorkspaceRole.OWNER
-            )
+        val membership = WorkspaceMembership(
+            workspace = workspace,
+            user = user,
+            role = WorkspaceRole.OWNER
         )
+        workspace.memberships.add(membership)
+        membershipRepository.save(membership)
 
         logger.info("Workspace '${workspace.slug}' created by user $userId")
 
         return toWorkspaceResponse(workspace, WorkspaceRole.OWNER, 1)
     }
 
+    @Transactional(readOnly = true)
     fun getUserWorkspaces(userId: UUID): List<WorkspaceResponse> {
         val memberships = membershipRepository.findByUserIdAndIsActiveTrue(userId)
         return memberships.map { m ->
@@ -63,6 +64,7 @@ class WorkspaceService(
         }
     }
 
+    @Transactional(readOnly = true)
     fun getWorkspace(workspaceId: UUID, userId: UUID): WorkspaceResponse {
         val workspace = workspaceRepository.findById(workspaceId)
             .orElseThrow { WorkspaceNotFoundException() }
@@ -74,6 +76,7 @@ class WorkspaceService(
         return toWorkspaceResponse(workspace, membership.role, memberCount)
     }
 
+    @Transactional(readOnly = true)
     fun validateMembership(workspaceId: UUID, userId: UUID): WorkspaceMeResponse {
         val membership = membershipRepository.findByWorkspaceIdAndUserIdAndIsActiveTrue(workspaceId, userId)
             ?: throw InsufficientRoleException("You are not a member of this workspace")
@@ -130,6 +133,7 @@ class WorkspaceService(
         workspaceRepository.delete(workspace)
     }
 
+    @Transactional(readOnly = true)
     fun checkSlugAvailability(slug: String): SlugAvailabilityResponse {
         return SlugAvailabilityResponse(!workspaceRepository.existsBySlug(slug.lowercase().trim()))
     }

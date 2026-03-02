@@ -19,6 +19,7 @@ class UserService(
     private val authService: AuthService
 ) {
 
+    @Transactional(readOnly = true)
     fun getCurrentUser(userId: UUID): UserResponse {
         val user = userRepository.findById(userId)
             .orElseThrow { UserNotFoundException() }
