@@ -62,24 +62,21 @@ export function WorkspaceProvider({ children }) {
     setHasWorkspace(true);
   }, []);
 
-  // Validate and set active workspace
-  const validateAndSetActive = useCallback(async (workspaceId) => {
-    try {
-      const membership = await validateMembership(workspaceId);
-      const ws = workspaces.find((w) => w.id === workspaceId) || {
-        id: workspaceId,
-        slug: membership.slug,
-        name: membership.slug,
-      };
-      activateWorkspace(ws, membership);
-      return true;
-    } catch {
-      localStorage.removeItem(ACTIVE_WS_KEY);
-      setActiveWorkspace(null);
-      setHasWorkspace(false);
-      return false;
-    }
-  }, [workspaces, activateWorkspace]);
+  const invalidateWorkspaceQueries = useCallback(() => {
+    queryClient.cancelQueries();
+    queryClient.invalidateQueries({ queryKey: ['links'] });
+    queryClient.invalidateQueries({ queryKey: ['links-page'] });
+    queryClient.invalidateQueries({ queryKey: ['link-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-timeseries'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-referrers'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-top-links'] });
+    queryClient.invalidateQueries({ queryKey: ['auditLogs'] });
+    queryClient.invalidateQueries({ queryKey: ['auditActions'] });
+    queryClient.invalidateQueries({ queryKey: ['members'] });
+    queryClient.invalidateQueries({ queryKey: ['invites'] });
+    queryClient.invalidateQueries({ queryKey: ['user-tags'] });
+  }, [queryClient]);
 
   // Initialize after auth is ready
   useEffect(() => {
@@ -160,19 +157,13 @@ export function WorkspaceProvider({ children }) {
       }
 
       // Invalidate all workspace-scoped queries
-      queryClient.cancelQueries();
-      queryClient.invalidateQueries({ queryKey: ['links'] });
-      queryClient.invalidateQueries({ queryKey: ['linkStats'] });
-      queryClient.invalidateQueries({ queryKey: ['analytics'] });
-      queryClient.invalidateQueries({ queryKey: ['audit'] });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['invites'] });
+      invalidateWorkspaceQueries();
 
       return true;
     } catch {
       return false;
     }
-  }, [workspaces, queryClient, activateWorkspace]);
+  }, [workspaces, activateWorkspace, invalidateWorkspaceQueries]);
 
   // Check permission
   const hasPermission = useCallback((permission) => {
@@ -244,18 +235,13 @@ export function WorkspaceProvider({ children }) {
       }
 
       // Invalidate queries for the new workspace context
-      queryClient.cancelQueries();
-      queryClient.invalidateQueries({ queryKey: ['links'] });
-      queryClient.invalidateQueries({ queryKey: ['analytics'] });
-      queryClient.invalidateQueries({ queryKey: ['audit'] });
-      queryClient.invalidateQueries({ queryKey: ['members'] });
-      queryClient.invalidateQueries({ queryKey: ['invites'] });
+      invalidateWorkspaceQueries();
     } catch {
       // Fallback — use the workspace response data directly
       activateWorkspace(workspace, null);
       setWorkspaces((prev) => [...prev, workspace]);
     }
-  }, [loadWorkspaces, queryClient, activateWorkspace]);
+  }, [loadWorkspaces, activateWorkspace, invalidateWorkspaceQueries]);
 
   const value = useMemo(() => ({
     activeWorkspace,

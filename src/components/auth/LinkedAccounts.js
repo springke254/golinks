@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link2Off, AlertTriangle, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 
 import * as oauthService from '../../services/oauthService';
 import Button from '../ui/Button';
+import Modal from '../ui/Modal';
 import Spinner from '../ui/Spinner';
 
 const PROVIDER_META = {
@@ -46,6 +47,7 @@ const PROVIDER_META = {
 
 export default function LinkedAccounts() {
   const queryClient = useQueryClient();
+  const [connectProvider, setConnectProvider] = useState(null);
 
   const { data: accounts, isLoading, isError } = useQuery({
     queryKey: ['linked-accounts'],
@@ -83,6 +85,20 @@ export default function LinkedAccounts() {
 
   const accountList = accounts || [];
   const linkedProviders = accountList.map((a) => a.provider);
+  const connectMeta = connectProvider ? PROVIDER_META[connectProvider] : null;
+
+  const handleOpenConnect = (provider) => {
+    setConnectProvider(provider);
+  };
+
+  const handleCloseConnect = () => {
+    setConnectProvider(null);
+  };
+
+  const handleConfirmConnect = () => {
+    if (!connectProvider) return;
+    window.location.href = `/api/v1/auth/oauth2/callback/${connectProvider}`;
+  };
 
   return (
     <div className="w-full space-y-4">
@@ -131,10 +147,7 @@ export default function LinkedAccounts() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => {
-                    // OAuth linking redirects to backend which handles the flow
-                    window.location.href = `/api/v1/auth/oauth/${provider}`;
-                  }}
+                  onClick={() => handleOpenConnect(provider)}
                 >
                   <ExternalLink className="w-4 h-4 mr-1" />
                   Connect
@@ -156,6 +169,43 @@ export default function LinkedAccounts() {
           </motion.p>
         )}
       </AnimatePresence>
+
+      <Modal
+        open={!!connectProvider}
+        onClose={handleCloseConnect}
+        title={connectMeta ? `Connect ${connectMeta.name}` : 'Connect provider'}
+        maxWidth="md"
+      >
+        <div className="space-y-4">
+          {connectMeta && (
+            <div className="flex items-center gap-3 p-3 bg-dark-elevated border-2 border-border-strong">
+              <div className="w-10 h-10 bg-dark-card border-2 border-border-strong flex items-center justify-center">
+                {connectMeta.icon}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-text-primary">{connectMeta.name}</p>
+                <p className="text-xs text-text-muted">
+                  You will be redirected to authorize this account.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <p className="text-xs text-text-secondary">
+            After authorization, you will return to Golinks and this provider will appear in your linked accounts.
+          </p>
+
+          <div className="flex gap-3 pt-1">
+            <Button type="button" variant="secondary" onClick={handleCloseConnect} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleConfirmConnect} className="flex-1">
+              <ExternalLink className="w-4 h-4 mr-1" />
+              Continue
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
