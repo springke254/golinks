@@ -1,9 +1,22 @@
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as linkService from '../services/linkService';
 
+const LINKS_REFETCH_INTERVAL_MS = 10_000;
+
 // Helper: read active workspace ID for scoped query keys
 function getWsId() {
   return localStorage.getItem('golinks_active_workspace_id') || null;
+}
+
+function invalidateLinkRelatedQueries(queryClient) {
+  queryClient.invalidateQueries({ queryKey: ['links'] });
+  queryClient.invalidateQueries({ queryKey: ['links-page'] });
+  queryClient.invalidateQueries({ queryKey: ['link-stats'] });
+  queryClient.invalidateQueries({ queryKey: ['analytics-summary'] });
+  queryClient.invalidateQueries({ queryKey: ['analytics-timeseries'] });
+  queryClient.invalidateQueries({ queryKey: ['analytics-referrers'] });
+  queryClient.invalidateQueries({ queryKey: ['analytics-top-links'] });
+  queryClient.invalidateQueries({ queryKey: ['auditLogs'] });
 }
 
 export function useLinks(filters = {}) {
@@ -18,6 +31,10 @@ export function useLinks(filters = {}) {
       }),
     getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
     initialPageParam: null,
+    refetchInterval: LINKS_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     enabled: !!wsId,
   });
 }
@@ -33,6 +50,10 @@ export function useLinksPage(filters = {}, page = 0, size = 20) {
         limit: size,
       }),
     keepPreviousData: true,
+    refetchInterval: LINKS_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     enabled: !!wsId,
   });
 }
@@ -42,6 +63,10 @@ export function useLinkStats() {
   return useQuery({
     queryKey: ['link-stats', wsId],
     queryFn: linkService.getLinkStats,
+    refetchInterval: LINKS_REFETCH_INTERVAL_MS,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
     enabled: !!wsId,
   });
 }
@@ -89,9 +114,7 @@ export function useCreateLink() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['links'] });
-      queryClient.invalidateQueries({ queryKey: ['links-page'] });
-      queryClient.invalidateQueries({ queryKey: ['link-stats'] });
+      invalidateLinkRelatedQueries(queryClient);
     },
   });
 }
@@ -126,9 +149,7 @@ export function useUpdateLink() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['links'] });
-      queryClient.invalidateQueries({ queryKey: ['links-page'] });
-      queryClient.invalidateQueries({ queryKey: ['link-stats'] });
+      invalidateLinkRelatedQueries(queryClient);
     },
   });
 }
@@ -163,9 +184,7 @@ export function useDeleteLink() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['links'] });
-      queryClient.invalidateQueries({ queryKey: ['links-page'] });
-      queryClient.invalidateQueries({ queryKey: ['link-stats'] });
+      invalidateLinkRelatedQueries(queryClient);
     },
   });
 }
@@ -175,9 +194,7 @@ export function useBulkDeleteLinks() {
   return useMutation({
     mutationFn: (ids) => linkService.bulkDeleteLinks(ids),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['links'] });
-      queryClient.invalidateQueries({ queryKey: ['links-page'] });
-      queryClient.invalidateQueries({ queryKey: ['link-stats'] });
+      invalidateLinkRelatedQueries(queryClient);
     },
   });
 }
@@ -205,9 +222,7 @@ export function useBulkImport() {
   return useMutation({
     mutationFn: (file) => linkService.bulkImportLinks(file),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['links'] });
-      queryClient.invalidateQueries({ queryKey: ['links-page'] });
-      queryClient.invalidateQueries({ queryKey: ['link-stats'] });
+      invalidateLinkRelatedQueries(queryClient);
     },
   });
 }
