@@ -209,10 +209,14 @@ class RedirectController(
                 label { display: block; font-size: 0.875rem; font-weight: 600; color: #B3B3B3; margin-bottom: 0.375rem; }
                 input { width: 100%; background: #191414; border: 2px solid #3A3A3A; color: #fff; padding: 0.625rem 1rem; font-size: 0.875rem; outline: none; }
                 input:focus { border-color: #1DB954; }
-                button { width: 100%; background: #1DB954; color: #191414; border: 2px solid #1DB954; padding: 0.625rem; font-size: 0.875rem; font-weight: 700; cursor: pointer; margin-top: 1rem; }
+                button { width: 100%; background: #1DB954; color: #191414; border: 2px solid #1DB954; padding: 0.625rem; font-size: 0.875rem; font-weight: 700; cursor: pointer; margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
                 button:hover { background: #1AA34A; }
+                button:disabled { opacity: 0.85; cursor: not-allowed; }
                 .error { color: #E02424; font-size: 0.75rem; margin-top: 0.5rem; display: none; }
                 .logo { color: #1DB954; font-weight: 700; font-size: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; }
+                .spinner { width: 0.875rem; height: 0.875rem; border: 2px solid rgba(25, 20, 20, 0.25); border-top-color: #191414; border-radius: 9999px !important; display: none; animation: spin 0.8s linear infinite; }
+                button.loading .spinner { display: inline-block; }
+                @keyframes spin { to { transform: rotate(360deg); } }
             </style>
         </head>
         <body>
@@ -224,15 +228,29 @@ class RedirectController(
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" placeholder="Enter password" required autofocus />
                     <div class="error" id="errorMsg">Incorrect password. Please try again.</div>
-                    <button type="submit">Continue</button>
+                    <button type="submit" id="submitBtn">
+                        <span class="spinner" id="submitSpinner"></span>
+                        <span id="submitLabel">Continue</span>
+                    </button>
                 </form>
             </div>
             <script>
-                document.getElementById('pwForm').addEventListener('submit', async (e) => {
+                const form = document.getElementById('pwForm');
+                const submitBtn = document.getElementById('submitBtn');
+                const submitLabel = document.getElementById('submitLabel');
+
+                function setLoading(loading) {
+                    submitBtn.disabled = loading;
+                    submitBtn.classList.toggle('loading', loading);
+                    submitLabel.textContent = loading ? 'Checking...' : 'Continue';
+                }
+
+                form.addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const password = document.getElementById('password').value;
                     const errorEl = document.getElementById('errorMsg');
                     errorEl.style.display = 'none';
+                    setLoading(true);
                     try {
                         const res = await fetch('/go/${slug}/verify', {
                             method: 'POST',
@@ -245,10 +263,12 @@ class RedirectController(
                         } else {
                             errorEl.textContent = data.message || 'Incorrect password';
                             errorEl.style.display = 'block';
+                            setLoading(false);
                         }
                     } catch (err) {
                         errorEl.textContent = 'Something went wrong';
                         errorEl.style.display = 'block';
+                        setLoading(false);
                     }
                 });
             </script>

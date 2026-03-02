@@ -76,7 +76,10 @@ data class PaginatedLinksResponse(
     val items: List<LinkResponse>,
     val nextCursor: String?,
     val totalCount: Long,
-    val hasMore: Boolean
+    val hasMore: Boolean,
+    val page: Int = 0,
+    val pageSize: Int = 20,
+    val totalPages: Int = 0
 )
 
 data class LinkStatsResponse(

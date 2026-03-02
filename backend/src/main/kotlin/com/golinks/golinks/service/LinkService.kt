@@ -228,10 +228,16 @@ class LinkService(
         userId: UUID,
         search: String?,
         cursor: String?,
+        page: Int,
         limit: Int
     ): PaginatedLinksResponse {
         val pageSize = limit.coerceIn(1, 100)
-        val pageable = PageRequest.of(0, pageSize)
+        val safePage = page.coerceAtLeast(0)
+        val pageable = if (cursor != null) {
+            PageRequest.of(0, pageSize)
+        } else {
+            PageRequest.of(safePage, pageSize)
+        }
 
         val totalCount: Long
         val items: List<ShortUrl>
@@ -254,11 +260,22 @@ class LinkService(
             null
         }
 
+        val totalPages = if (totalCount == 0L) {
+            0
+        } else {
+            ((totalCount + pageSize - 1) / pageSize).toInt()
+        }
+
+        val responsePage = if (cursor != null) 0 else safePage
+
         return PaginatedLinksResponse(
             items = items.map { toResponse(it) },
             nextCursor = nextCursor,
             totalCount = totalCount,
-            hasMore = nextCursor != null
+            hasMore = nextCursor != null,
+            page = responsePage,
+            pageSize = pageSize,
+            totalPages = totalPages
         )
     }
 

@@ -1,5 +1,6 @@
 package com.golinks.golinks.entity
 
+import com.fasterxml.jackson.databind.JsonNode
 import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
@@ -23,8 +24,8 @@ class LinkAuditLog(
     val action: String,
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
-    val details: String? = null,
+    @Column(name = "details", columnDefinition = "jsonb")
+    val details: JsonNode? = null,
 
     @Column(name = "resource_type", length = 30)
     val resourceType: String = "LINK",
