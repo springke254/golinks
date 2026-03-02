@@ -208,6 +208,78 @@ class GlobalExceptionHandler {
         )
     }
 
+    // ── Workspace exception handlers ───────────────────────
+
+    @ExceptionHandler(WorkspaceNotFoundException::class)
+    fun handleWorkspaceNotFound(ex: WorkspaceNotFoundException): ResponseEntity<ApiErrorResponse> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            ApiErrorResponse(
+                status = 404,
+                message = ex.message ?: "Workspace not found"
+            )
+        )
+    }
+
+    @ExceptionHandler(InsufficientRoleException::class)
+    fun handleInsufficientRole(ex: InsufficientRoleException): ResponseEntity<Map<String, Any>> {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(mapOf(
+            "status" to 403,
+            "message" to (ex.message ?: "Insufficient permissions"),
+            "code" to "INSUFFICIENT_ROLE"
+        ))
+    }
+
+    @ExceptionHandler(InviteExpiredException::class)
+    fun handleInviteExpired(ex: InviteExpiredException): ResponseEntity<ApiErrorResponse> {
+        return ResponseEntity.status(HttpStatus.GONE).body(
+            ApiErrorResponse(
+                status = 410,
+                message = ex.message ?: "This invite has expired"
+            )
+        )
+    }
+
+    @ExceptionHandler(InviteRevokedException::class)
+    fun handleInviteRevoked(ex: InviteRevokedException): ResponseEntity<ApiErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+            ApiErrorResponse(
+                status = 400,
+                message = ex.message ?: "This invite has been revoked"
+            )
+        )
+    }
+
+    @ExceptionHandler(AlreadyMemberException::class)
+    fun handleAlreadyMember(ex: AlreadyMemberException): ResponseEntity<ApiErrorResponse> {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+            ApiErrorResponse(
+                status = 409,
+                message = ex.message ?: "User is already a member"
+            )
+        )
+    }
+
+    @ExceptionHandler(LastOwnerException::class)
+    fun handleLastOwner(ex: LastOwnerException): ResponseEntity<ApiErrorResponse> {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+            ApiErrorResponse(
+                status = 400,
+                message = ex.message ?: "Cannot remove the last owner"
+            )
+        )
+    }
+
+    @ExceptionHandler(DuplicateSlugWorkspaceException::class)
+    fun handleDuplicateWorkspaceSlug(ex: DuplicateSlugWorkspaceException): ResponseEntity<ApiErrorResponse> {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+            ApiErrorResponse(
+                status = 409,
+                message = ex.message ?: "Workspace slug already taken",
+                errors = listOf(FieldError("slug", "A workspace with this slug already exists"))
+            )
+        )
+    }
+
     @ExceptionHandler(DateTimeParseException::class)
     fun handleDateTimeParse(ex: DateTimeParseException): ResponseEntity<ApiErrorResponse> {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(

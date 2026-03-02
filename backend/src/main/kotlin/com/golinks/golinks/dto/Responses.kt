@@ -170,3 +170,72 @@ data class AuditActionsResponse(
     val actions: List<String>,
     val resourceTypes: List<String>
 )
+
+// ── Workspace ────────────────────────────────────────────
+
+data class WorkspaceResponse(
+    val id: UUID,
+    val name: String,
+    val slug: String,
+    val description: String?,
+    val avatarUrl: String?,
+    val memberCount: Long,
+    val role: String,
+    val createdAt: Instant
+)
+
+data class WorkspaceMeResponse(
+    val workspaceId: UUID,
+    val slug: String,
+    val role: String,
+    val permissions: Set<String>
+)
+
+data class WorkspaceMemberResponse(
+    val userId: UUID,
+    val email: String,
+    val displayName: String,
+    val avatarUrl: String?,
+    val role: String,
+    val joinedAt: Instant
+)
+
+data class PaginatedMembersResponse(
+    val items: List<WorkspaceMemberResponse>,
+    val page: Int,
+    val pageSize: Int,
+    val totalItems: Long,
+    val totalPages: Int
+)
+
+data class InviteResponse(
+    val id: UUID,
+    val email: String,
+    val role: String,
+    val expiresAt: Instant,
+    val createdAt: Instant,
+    val status: String
+)
+
+data class PaginatedInvitesResponse(
+    val items: List<InviteResponse>,
+    val page: Int,
+    val pageSize: Int,
+    val totalItems: Long,
+    val totalPages: Int
+)
+
+data class InviteValidationResponse(
+    val valid: Boolean,
+    val workspaceName: String?,
+    val workspaceSlug: String?,
+    val inviterName: String?,
+    val role: String?,
+    val email: String?,
+    val error: String? = null,
+    val errorCode: String? = null
+)
+
+data class SlugAvailabilityResponse(
+    val available: Boolean
+)

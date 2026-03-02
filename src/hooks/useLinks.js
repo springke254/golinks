@@ -1,9 +1,15 @@
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as linkService from '../services/linkService';
 
+// Helper: read active workspace ID for scoped query keys
+function getWsId() {
+  return localStorage.getItem('golinks_active_workspace_id') || null;
+}
+
 export function useLinks(filters = {}) {
+  const wsId = getWsId();
   return useInfiniteQuery({
-    queryKey: ['links', filters],
+    queryKey: ['links', wsId, filters],
     queryFn: ({ pageParam }) =>
       linkService.getLinks({
         ...filters,
@@ -12,13 +18,16 @@ export function useLinks(filters = {}) {
       }),
     getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
     initialPageParam: null,
+    enabled: !!wsId,
   });
 }
 
 export function useLinkStats() {
+  const wsId = getWsId();
   return useQuery({
-    queryKey: ['link-stats'],
+    queryKey: ['link-stats', wsId],
     queryFn: linkService.getLinkStats,
+    enabled: !!wsId,
   });
 }
 

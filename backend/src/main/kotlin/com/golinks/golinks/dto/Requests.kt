@@ -117,3 +117,51 @@ data class PasswordChallengeRequest(
     @field:NotBlank(message = "Password is required")
     val password: String
 )
+
+// ── Workspace ────────────────────────────────────────────
+
+data class CreateWorkspaceRequest(
+    @field:NotBlank(message = "Workspace name is required")
+    @field:Size(min = 3, max = 100, message = "Name must be between 3 and 100 characters")
+    val name: String,
+
+    @field:NotBlank(message = "Slug is required")
+    @field:Size(min = 3, max = 50, message = "Slug must be between 3 and 50 characters")
+    val slug: String,
+
+    @field:Size(max = 500, message = "Description must be at most 500 characters")
+    val description: String? = null
+)
+
+data class UpdateWorkspaceRequest(
+    @field:Size(min = 3, max = 100, message = "Name must be between 3 and 100 characters")
+    val name: String? = null,
+
+    @field:Size(min = 3, max = 50, message = "Slug must be between 3 and 50 characters")
+    val slug: String? = null,
+
+    @field:Size(max = 500, message = "Description must be at most 500 characters")
+    val description: String? = null,
+
+    @field:Size(max = 500, message = "Avatar URL must be at most 500 characters")
+    val avatarUrl: String? = null
+)
+
+data class CreateInviteRequest(
+    @field:NotBlank(message = "Email is required")
+    @field:Email(message = "Invalid email format")
+    val email: String,
+
+    @field:NotBlank(message = "Role is required")
+    val role: String = "MEMBER"
+)
+
+data class AcceptInviteRequest(
+    @field:NotBlank(message = "Token is required")
+    val token: String
+)
+
+data class UpdateMemberRoleRequest(
+    @field:NotBlank(message = "Role is required")
+    val role: String
+)

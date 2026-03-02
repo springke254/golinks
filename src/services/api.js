@@ -22,11 +22,16 @@ const api = axios.create({
   withCredentials: true, // Send cookies (refresh token)
 });
 
-// Request interceptor — attach access token
+// Request interceptor — attach access token + workspace context
 api.interceptors.request.use(
   (config) => {
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
+    }
+    // Attach active workspace ID from localStorage for workspace-scoped requests
+    const wsId = localStorage.getItem('golinks_active_workspace_id');
+    if (wsId) {
+      config.headers['X-Workspace-Id'] = wsId;
     }
     return config;
   },

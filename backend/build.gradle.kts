@@ -26,6 +26,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-cache")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-data-redis")
+	implementation("org.springframework.boot:spring-boot-starter-mail")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
 	implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
 	implementation("org.springframework.boot:spring-boot-starter-security")
@@ -43,6 +44,9 @@ dependencies {
 
 	// NanoID for slug generation
 	implementation("com.aventrix.jnanoid:jnanoid:2.0.0")
+
+	// .env file support for Spring Boot
+	implementation("me.paulschwarz:spring-dotenv:4.0.0")
 
 	// CSV parsing
 	implementation("org.apache.commons:commons-csv:1.12.0")

@@ -54,40 +54,42 @@ export default function AuthLayout({ children, title, subtitle }) {
 
       {/* Right — Auth form */}
       <div className="w-full lg:w-1/2 flex flex-col h-full overflow-y-auto">
-        <div className="flex-1 flex flex-col justify-center px-6 sm:px-12 lg:px-16 xl:px-24 py-12">
-          {/* Logo (visible on mobile only since image panel has its own) */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="mb-10 lg:hidden"
-          >
-            <Logo size="xl" />
-          </motion.div>
-
-          {/* Title */}
-          {title && (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 sm:px-12 lg:px-16 xl:px-24 py-12">
+          <div className="w-full max-w-sm">
+            {/* Logo (visible on mobile only since image panel has its own) */}
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
+              initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-              className="mb-8"
+              transition={{ duration: 0.4 }}
+              className="mb-10 lg:hidden"
             >
-              <h1 className="text-3xl font-bold text-text-primary">{title}</h1>
-              {subtitle && (
-                <p className="mt-2 text-text-secondary text-sm">{subtitle}</p>
-              )}
+              <Logo size="xl" />
             </motion.div>
-          )}
 
-          {/* Form content */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-          >
-            {children}
-          </motion.div>
+            {/* Title */}
+            {title && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+                className="mb-8"
+              >
+                <h1 className="text-3xl font-bold text-text-primary">{title}</h1>
+                {subtitle && (
+                  <p className="mt-2 text-text-secondary text-sm">{subtitle}</p>
+                )}
+              </motion.div>
+            )}
+
+            {/* Form content */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
+              {children}
+            </motion.div>
+          </div>
         </div>
       </div>
       </div>

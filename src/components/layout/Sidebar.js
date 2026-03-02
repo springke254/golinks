@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import Logo from '../ui/Logo';
+import WorkspaceSwitcher from '../workspace/WorkspaceSwitcher';
 import { ROUTES } from '../../utils/constants';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -69,6 +70,9 @@ export default function Sidebar() {
       <div className="flex items-center h-16 px-4 border-b-2 border-border-strong shrink-0">
         <Logo size={collapsed ? 'sm' : 'md'} showText={!collapsed} />
       </div>
+
+      {/* Workspace switcher */}
+      <WorkspaceSwitcher collapsed={collapsed} />
 
       {/* Navigation */}
       <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">

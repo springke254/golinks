@@ -74,6 +74,10 @@ class SecurityConfig(
                     .requestMatchers("/api/v1/auth/forgot-password").permitAll()
                     .requestMatchers("/api/v1/auth/reset-password").permitAll()
                     .requestMatchers("/api/v1/auth/oauth2/callback/**").permitAll()
+                    // Telemetry (sendBeacon — no auth headers)
+                    .requestMatchers(HttpMethod.POST, "/api/v1/analytics/telemetry").permitAll()
+                    // Invite validation (public)
+                    .requestMatchers("/api/v1/invites/validate").permitAll()
                     // Redirect endpoints (public)
                     .requestMatchers("/go/**").permitAll()
                     // Actuator
