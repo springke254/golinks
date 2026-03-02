@@ -104,6 +104,7 @@ class WorkspaceInviteService(
         return toInviteResponse(invite)
     }
 
+    @Transactional(readOnly = true)
     fun getInvites(workspaceId: UUID, page: Int, size: Int, userId: UUID): PaginatedInvitesResponse {
         val membership = membershipRepository.findByWorkspaceIdAndUserIdAndIsActiveTrue(workspaceId, userId)
             ?: throw InsufficientRoleException("You are not a member of this workspace")
@@ -124,6 +125,7 @@ class WorkspaceInviteService(
         )
     }
 
+    @Transactional(readOnly = true)
     fun validateInviteToken(rawToken: String): InviteValidationResponse {
         val tokenHash = hashToken(rawToken)
         val invite = inviteRepository.findByTokenHash(tokenHash)

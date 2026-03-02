@@ -82,12 +82,35 @@ function GuestRoute() {
 
 /** Protected route that also checks for workspace — redirects to onboarding if none */
 function WorkspaceGuard() {
-  const { hasWorkspace, isLoading } = useWorkspace();
+  const { hasWorkspace, isLoading, loadError, retryInit } = useWorkspace();
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-dark">
         <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  // If workspace loading failed (network error, rate-limit, server error),
+  // show a retry UI instead of incorrectly redirecting to onboarding.
+  if (loadError && !hasWorkspace) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-dark">
+        <div className="text-center space-y-4 max-w-sm px-6">
+          <p className="text-text-primary font-semibold text-lg">
+            Could not load your workspaces
+          </p>
+          <p className="text-text-secondary text-sm">
+            This may be a temporary connection issue. Please try again.
+          </p>
+          <button
+            onClick={retryInit}
+            className="inline-flex items-center gap-2 bg-primary text-dark px-5 py-2.5 font-bold text-sm hover:brightness-110 transition"
+          >
+            Try again
+          </button>
+        </div>
       </div>
     );
   }

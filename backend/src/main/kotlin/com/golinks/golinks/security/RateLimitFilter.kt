@@ -41,10 +41,11 @@ class RateLimitFilter(
     private val log = LoggerFactory.getLogger(RateLimitFilter::class.java)
 
     override fun shouldNotFilter(request: HttpServletRequest): Boolean {
-        // Skip rate limiting if disabled or for actuator / OPTIONS pre-flight
+        // Skip rate limiting if disabled or for actuator / OPTIONS pre-flight / telemetry
         if (!rateLimitProperties.enabled) return true
         val path = request.requestURI
         if (path.startsWith("/actuator")) return true
+        if (path == "/api/v1/analytics/telemetry") return true
         if (request.method.equals("OPTIONS", ignoreCase = true)) return true
         return false
     }

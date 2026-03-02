@@ -28,11 +28,13 @@ class AbuseDetectionService(
     private val logger = LoggerFactory.getLogger(AbuseDetectionService::class.java)
 
     companion object {
-        /** UA substrings that strongly suggest an automated client */
+        /** UA substrings that strongly suggest an automated client.
+         *  NOTE: "axios/" and "node-fetch" are intentionally excluded —
+         *  they appear in legitimate dev-server proxied requests. */
         private val BOT_UA_PATTERNS = listOf(
             "python-requests", "python-urllib", "scrapy", "httpclient",
             "go-http-client", "java/", "wget", "curl", "libwww-perl",
-            "php/", "node-fetch", "axios/", "okhttp", "apache-httpclient",
+            "php/", "okhttp", "apache-httpclient",
             "httpie", "postmanruntime"
         )
 
@@ -72,24 +74,30 @@ class AbuseDetectionService(
             return true
         }
 
-        // 4. Behaviour analysis — excessive link creation
-        val linkCreateCount = rateLimitService.incrementCounter(
-            "abuse:link_creates:$ip", BEHAVIOUR_WINDOW_SECONDS
-        )
-        if (linkCreateCount > MAX_LINK_CREATES_5MIN) {
-            logger.warn("Abuse: $ip created $linkCreateCount links in 5 min")
-            flagSuspicious(ip)
-            return true
+        // 4. Behaviour analysis — excessive link creation (only count actual POST /api/v1/links)
+        val path = request.requestURI
+        val method = request.method
+        if (method.equals("POST", ignoreCase = true) && path.startsWith("/api/v1/links")) {
+            val linkCreateCount = rateLimitService.incrementCounter(
+                "abuse:link_creates:$ip", BEHAVIOUR_WINDOW_SECONDS
+            )
+            if (linkCreateCount > MAX_LINK_CREATES_5MIN) {
+                logger.warn("Abuse: $ip created $linkCreateCount links in 5 min")
+                flagSuspicious(ip)
+                return true
+            }
         }
 
-        // 5. Behaviour analysis — extremely high redirect rate
-        val redirectCount = rateLimitService.incrementCounter(
-            "abuse:redirects:$ip", REDIRECT_WINDOW_SECONDS
-        )
-        if (redirectCount > MAX_REDIRECTS_1MIN) {
-            logger.warn("Abuse: $ip made $redirectCount redirects in 1 min")
-            flagSuspicious(ip)
-            return true
+        // 5. Behaviour analysis — extremely high redirect rate (only count actual /go/ requests)
+        if (path.startsWith("/go/")) {
+            val redirectCount = rateLimitService.incrementCounter(
+                "abuse:redirects:$ip", REDIRECT_WINDOW_SECONDS
+            )
+            if (redirectCount > MAX_REDIRECTS_1MIN) {
+                logger.warn("Abuse: $ip made $redirectCount redirects in 1 min")
+                flagSuspicious(ip)
+                return true
+            }
         }
 
         return false
