@@ -15,7 +15,9 @@ import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.HttpStatusEntryPoint
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.http.HttpStatus
 import org.springframework.web.cors.CorsConfigurationSource
 
 @Configuration
@@ -76,6 +78,8 @@ class SecurityConfig(
                     .requestMatchers("/api/v1/auth/oauth2/callback/**").permitAll()
                     // Telemetry (sendBeacon — no auth headers)
                     .requestMatchers(HttpMethod.POST, "/api/v1/analytics/telemetry").permitAll()
+                    // Workspace slug availability check (safe to be public)
+                    .requestMatchers(HttpMethod.GET, "/api/v1/workspaces/check-slug/**").permitAll()
                     // Invite validation (public)
                     .requestMatchers("/api/v1/invites/validate").permitAll()
                     // Redirect endpoints (public)
@@ -87,6 +91,8 @@ class SecurityConfig(
                     // Everything else requires authentication
                     .anyRequest().authenticated()
             }
+            // Return 401 (not default 403) for unauthenticated requests
+            .exceptionHandling { it.authenticationEntryPoint(HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)) }
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(rateLimitFilter, jwtAuthenticationFilter::class.java)
             // Disable default form login and httpBasic

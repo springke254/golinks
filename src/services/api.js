@@ -60,13 +60,14 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // --- 401 Unauthorized with silent refresh ---
+    // --- 401 Unauthorized (or 403 from expired/missing token) with silent refresh ---
     if (
-      error.response?.status === 401 &&
+      (error.response?.status === 401 || error.response?.status === 403) &&
       !originalRequest._retry &&
       !originalRequest.url?.includes('/auth/login') &&
       !originalRequest.url?.includes('/auth/signup') &&
-      !originalRequest.url?.includes('/auth/refresh')
+      !originalRequest.url?.includes('/auth/refresh') &&
+      !originalRequest.url?.includes('/analytics/telemetry')
     ) {
       originalRequest._retry = true;
 

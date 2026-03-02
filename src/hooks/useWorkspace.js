@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getUserWorkspaces, validateMembership } from '../services/workspaceService';
+import { useAuth } from './useAuth';
 import { ROLE_PERMISSIONS } from '../utils/constants';
 
 const WorkspaceContext = createContext(null);
@@ -11,6 +12,7 @@ export function WorkspaceProvider({ children }) {
   const [workspaces, setWorkspaces] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasWorkspace, setHasWorkspace] = useState(false);
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
   // Load workspaces on mount
@@ -50,8 +52,20 @@ export function WorkspaceProvider({ children }) {
     }
   }, [workspaces]);
 
-  // Initialize on mount
+  // Initialize after auth is ready
   useEffect(() => {
+    // Wait for auth to finish loading before fetching workspaces
+    if (authLoading) return;
+
+    // Not authenticated — skip workspace loading
+    if (!isAuthenticated) {
+      setWorkspaces([]);
+      setHasWorkspace(false);
+      setActiveWorkspace(null);
+      setIsLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function init() {
@@ -114,7 +128,7 @@ export function WorkspaceProvider({ children }) {
 
     init();
     return () => { cancelled = true; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoading, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Switch workspace
   const switchWorkspace = useCallback(async (workspaceId) => {

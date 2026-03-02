@@ -81,7 +81,7 @@ class RateLimitFilter(
 
         // --- Per-user check (if authenticated) ---
         val auth = SecurityContextHolder.getContext().authentication
-        val userId = auth?.principal as? String
+        val userId = (auth?.principal as? org.springframework.security.core.userdetails.UserDetails)?.username
         if (userId != null) {
             val userKey = rateLimitService.userKey(userId, category)
             // Authenticated users get 2x the per-IP limit as individual quota
