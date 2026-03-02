@@ -51,7 +51,11 @@ function actionVariant(action) {
 function tryParseDetails(json) {
   if (!json) return null;
   try {
-    return JSON.parse(json);
+    const parsed = typeof json === 'string' ? JSON.parse(json) : json;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    return parsed;
   } catch {
     return null;
   }

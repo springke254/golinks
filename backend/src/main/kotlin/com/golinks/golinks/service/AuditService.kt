@@ -19,6 +19,11 @@ class AuditService(
     private val objectMapper: ObjectMapper
 ) {
 
+    companion object {
+        private val MIN_AUDIT_INSTANT: Instant = Instant.EPOCH
+        private val MAX_AUDIT_INSTANT: Instant = Instant.parse("9999-12-31T23:59:59Z")
+    }
+
     private val logger = LoggerFactory.getLogger(AuditService::class.java)
     private val auditLogger = LoggerFactory.getLogger("AUDIT")
 
@@ -35,9 +40,9 @@ class AuditService(
         ipAddress: String? = null,
         userAgent: String? = null
     ) {
-        val detailsJson = details?.let {
+        val detailsNode = details?.let {
             try {
-                objectMapper.writeValueAsString(it)
+                objectMapper.valueToTree(it)
             } catch (ex: Exception) {
                 logger.warn("Failed to serialize audit details: ${ex.message}")
                 null
@@ -49,7 +54,7 @@ class AuditService(
             shortUrlId = shortUrlId,
             action = action,
             resourceType = resourceType,
-            details = detailsJson,
+            details = detailsNode,
             ipAddress = ipAddress,
             userAgent = userAgent
         )
@@ -64,7 +69,7 @@ class AuditService(
             userId,
             shortUrlId ?: "-",
             ipAddress ?: "-",
-            detailsJson ?: "{}"
+            detailsNode?.toString() ?: "{}"
         )
     }
 
@@ -82,7 +87,16 @@ class AuditService(
         size: Int
     ): PaginatedAuditLogsResponse {
         val pageable = PageRequest.of(page, size.coerceIn(1, 100))
-        val result = linkAuditLogRepository.search(action, resourceType, userId, from, to, pageable)
+        val effectiveFrom = from ?: MIN_AUDIT_INSTANT
+        val effectiveTo = to ?: MAX_AUDIT_INSTANT
+        val result = linkAuditLogRepository.search(
+            action = action,
+            resourceType = resourceType,
+            userId = userId,
+            from = effectiveFrom,
+            to = effectiveTo,
+            pageable = pageable
+        )
 
         return PaginatedAuditLogsResponse(
             items = result.content.map { toResponse(it) },
@@ -111,7 +125,7 @@ class AuditService(
             shortUrlId = log.shortUrlId,
             action = log.action,
             resourceType = log.resourceType,
-            details = log.details,
+            details = log.details?.toString(),
             ipAddress = log.ipAddress,
             userAgent = log.userAgent,
             createdAt = log.createdAt
