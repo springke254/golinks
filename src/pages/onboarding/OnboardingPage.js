@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Building2, Link2, Loader2, Check, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Building2, Link2, Loader2, Check, X, AlertTriangle, RefreshCw, Mail } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { createWorkspaceSchema, nameToSlug } from '../../schemas/workspaceSchemas';
@@ -20,6 +20,9 @@ export default function OnboardingPage() {
   const [slugStatus, setSlugStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
   const { onWorkspaceCreated, hasWorkspace, isLoading: wsLoading, loadError, retryInit } = useWorkspace();
   const navigate = useNavigate();
+
+  // Check for pending invite token in sessionStorage (from invite → signup flow)
+  const pendingInviteToken = sessionStorage.getItem('golinks_pending_invite_token');
 
   // If user already has a workspace, redirect to dashboard
   useEffect(() => {
@@ -165,6 +168,35 @@ export default function OnboardingPage() {
             >
               <Logo size="xl" />
             </motion.div>
+
+            {/* Pending invite banner */}
+            {pendingInviteToken && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-6 bg-primary/10 border-2 border-primary/30 p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <Mail className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div className="flex-1 space-y-2">
+                    <p className="text-sm font-semibold text-text-primary">
+                      You have a pending invite
+                    </p>
+                    <p className="text-xs text-text-secondary">
+                      Accept the invite to join an existing workspace, or create a new one below.
+                    </p>
+                    <Link
+                      to={`${ROUTES.INVITE}?token=${pendingInviteToken}`}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:text-primary/80 transition"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Accept invite
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* Error banner — shown when workspace loading failed */}
             {loadError && (

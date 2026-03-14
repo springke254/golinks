@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Mail, Shield, MoreHorizontal, UserMinus, ChevronDown, Loader2 } from 'lucide-react';
+import { Users, Mail, Shield, MoreHorizontal, UserMinus, ChevronDown, Loader2, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { useMembers, useUpdateMemberRole, useRemoveMember } from '../../hooks/useMembers';
+import { useMembers, useUpdateMemberRole, useRemoveMember, useLeaveWorkspace } from '../../hooks/useMembers';
 import { useInvites, useCreateInvite, useRevokeInvite, useResendInvite } from '../../hooks/useInvites';
 import { useWorkspace } from '../../hooks/useWorkspace';
 import { useAuth } from '../../hooks/useAuth';
@@ -22,8 +22,11 @@ const ROLE_BADGE = {
 
 export default function TeamMembers() {
   const [inviteOpen, setInviteOpen] = useState(false);
-  const { activeWorkspace, hasPermission } = useWorkspace();
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [leaveSlugText, setLeaveSlugText] = useState('');
+  const { activeWorkspace, hasPermission, refreshWorkspaces } = useWorkspace();
   const { user } = useAuth();
+  const leaveWorkspace = useLeaveWorkspace();
 
   const { data: membersData, isLoading: membersLoading } = useMembers({ page: 0, size: 50 });
   const { data: invitesData, isLoading: invitesLoading } = useInvites({ page: 0, size: 50 });
@@ -34,6 +37,24 @@ export default function TeamMembers() {
   const members = membersData?.content || [];
   const invites = invitesData?.content || [];
   const pendingInvites = invites.filter((i) => !i.redeemed && !i.revoked);
+
+  // Check if user is the only owner
+  const isOwner = activeWorkspace?.role === WORKSPACE_ROLES.OWNER;
+  const ownerCount = members.filter((m) => m.role === WORKSPACE_ROLES.OWNER).length;
+  const isLastOwner = isOwner && ownerCount <= 1;
+
+  const handleLeave = async () => {
+    if (leaveSlugText !== activeWorkspace?.slug) return;
+    try {
+      await leaveWorkspace.mutateAsync();
+      setLeaveOpen(false);
+      setLeaveSlugText('');
+      await refreshWorkspaces();
+      window.location.reload();
+    } catch {
+      // Error handled by hook
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -46,12 +67,43 @@ export default function TeamMembers() {
             {pendingInvites.length > 0 && ` · ${pendingInvites.length} pending invite${pendingInvites.length !== 1 ? 's' : ''}`}
           </p>
         </div>
-        {canManageInvites && (
-          <Button size="sm" onClick={() => setInviteOpen(true)}>
-            <Mail className="w-4 h-4" />
-            Invite
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Leave workspace — available for non-last-owners */}
+          {!isLastOwner && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLeaveOpen(true)}
+              className="text-text-secondary hover:text-danger"
+            >
+              <LogOut className="w-4 h-4" />
+              Leave
+            </Button>
+          )}
+          {/* Last owner tooltip */}
+          {isLastOwner && (
+            <div className="relative group">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled
+                className="opacity-50 cursor-not-allowed"
+              >
+                <LogOut className="w-4 h-4" />
+                Leave
+              </Button>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-dark-elevated border-2 border-border-strong text-xs text-text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                You're the only owner — transfer ownership first
+              </div>
+            </div>
+          )}
+          {canManageInvites && (
+            <Button size="sm" onClick={() => setInviteOpen(true)}>
+              <Mail className="w-4 h-4" />
+              Invite
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Members list */}
@@ -87,6 +139,51 @@ export default function TeamMembers() {
 
       {/* Invite modal */}
       <InviteMemberModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
+
+      {/* Leave workspace confirmation modal */}
+      <Modal open={leaveOpen} onClose={() => { setLeaveOpen(false); setLeaveSlugText(''); }} title="Leave workspace">
+        <div className="space-y-4">
+          <div className="bg-danger/10 border-2 border-danger/30 p-4">
+            <p className="text-sm text-text-primary font-semibold">Are you sure you want to leave?</p>
+            <p className="text-xs text-text-secondary mt-1">
+              You will lose access to all links and data in this workspace. This action cannot be undone.
+            </p>
+          </div>
+
+          <div>
+            <p className="text-xs text-text-secondary mb-2">
+              Type <span className="font-bold text-text-primary">{activeWorkspace?.slug}</span> to confirm:
+            </p>
+            <input
+              type="text"
+              value={leaveSlugText}
+              onChange={(e) => setLeaveSlugText(e.target.value)}
+              placeholder={activeWorkspace?.slug}
+              className="w-full bg-dark-elevated text-text-primary placeholder-text-muted border-2 border-danger/50 rounded-none px-4 py-2.5 text-sm focus:outline-none focus:border-danger transition-colors"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => { setLeaveOpen(false); setLeaveSlugText(''); }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              loading={leaveWorkspace.isPending}
+              disabled={leaveSlugText !== activeWorkspace?.slug}
+              onClick={handleLeave}
+              className="flex-1"
+            >
+              Leave workspace
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

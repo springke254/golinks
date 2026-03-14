@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getUserWorkspaces, validateMembership } from '../services/workspaceService';
 import { useAuth } from './useAuth';
 import { ROLE_PERMISSIONS } from '../utils/constants';
+import { WORKSPACE_ERROR_EVENT } from '../services/api';
 
 const WorkspaceContext = createContext(null);
 const ACTIVE_WS_KEY = 'golinks_active_workspace_id';
@@ -19,10 +20,28 @@ export function WorkspaceProvider({ children }) {
   const [workspaces, setWorkspaces] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasWorkspace, setHasWorkspace] = useState(false);
-  const [loadError, setLoadError] = useState(null);   // NEW: tracks load failures
+  const [loadError, setLoadError] = useState(null);
+  const [isSwitching, setIsSwitching] = useState(false);
+  const [workspaceError, setWorkspaceError] = useState(null);
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const retryCountRef = useRef(0);
+  const switchAbortRef = useRef(null);
+
+  // Listen for workspace-specific 403 errors dispatched by api.js
+  useEffect(() => {
+    function handleWorkspaceError(e) {
+      const { code, message } = e.detail || {};
+      setWorkspaceError({ code, message });
+      // NO_WORKSPACE means user has no workspaces at all — redirect to onboarding
+      if (code === 'NO_WORKSPACE') {
+        setHasWorkspace(false);
+      }
+    }
+
+    window.addEventListener(WORKSPACE_ERROR_EVENT, handleWorkspaceError);
+    return () => window.removeEventListener(WORKSPACE_ERROR_EVENT, handleWorkspaceError);
+  }, []);
 
   // Load workspaces with automatic retry on failure
   const loadWorkspaces = useCallback(async (retries = MAX_RETRIES) => {
@@ -60,6 +79,7 @@ export function WorkspaceProvider({ children }) {
     setActiveWorkspace({ ...ws, role, permissions });
     localStorage.setItem(ACTIVE_WS_KEY, ws.id);
     setHasWorkspace(true);
+    setWorkspaceError(null); // Clear any previous workspace errors
   }, []);
 
   const invalidateWorkspaceQueries = useCallback(() => {
@@ -89,6 +109,7 @@ export function WorkspaceProvider({ children }) {
       setHasWorkspace(false);
       setActiveWorkspace(null);
       setLoadError(null);
+      setWorkspaceError(null);
       setIsLoading(false);
       return;
     }
@@ -144,14 +165,28 @@ export function WorkspaceProvider({ children }) {
     return () => { cancelled = true; };
   }, [authLoading, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Switch workspace
+  // Switch workspace with abort controller for in-flight requests
   const switchWorkspace = useCallback(async (workspaceId) => {
     try {
+      // Abort any previous switching operation
+      if (switchAbortRef.current) {
+        switchAbortRef.current.abort();
+      }
+      const abortController = new AbortController();
+      switchAbortRef.current = abortController;
+
+      setIsSwitching(true);
+
+      // Cancel all in-flight workspace-scoped queries
+      queryClient.cancelQueries();
+
       const ws = workspaces.find((w) => w.id === workspaceId) || { id: workspaceId };
       try {
         const membership = await validateMembership(workspaceId);
+        if (abortController.signal.aborted) return false;
         activateWorkspace({ ...ws, slug: membership.slug }, membership);
       } catch {
+        if (abortController.signal.aborted) return false;
         // validateMembership failed — use workspace list data as fallback
         activateWorkspace(ws, null);
       }
@@ -162,8 +197,10 @@ export function WorkspaceProvider({ children }) {
       return true;
     } catch {
       return false;
+    } finally {
+      setIsSwitching(false);
     }
-  }, [workspaces, activateWorkspace, invalidateWorkspaceQueries]);
+  }, [workspaces, activateWorkspace, invalidateWorkspaceQueries, queryClient]);
 
   // Check permission
   const hasPermission = useCallback((permission) => {
@@ -243,19 +280,27 @@ export function WorkspaceProvider({ children }) {
     }
   }, [loadWorkspaces, activateWorkspace, invalidateWorkspaceQueries]);
 
+  // Clear workspace error (for dismissing)
+  const clearWorkspaceError = useCallback(() => {
+    setWorkspaceError(null);
+  }, []);
+
   const value = useMemo(() => ({
     activeWorkspace,
     workspaces,
     isLoading,
     hasWorkspace,
     loadError,
+    isSwitching,
+    workspaceError,
     switchWorkspace,
     hasPermission,
     refreshWorkspaces,
     loadWorkspaces,
     onWorkspaceCreated,
     retryInit,
-  }), [activeWorkspace, workspaces, isLoading, hasWorkspace, loadError, switchWorkspace, hasPermission, refreshWorkspaces, loadWorkspaces, onWorkspaceCreated, retryInit]);
+    clearWorkspaceError,
+  }), [activeWorkspace, workspaces, isLoading, hasWorkspace, loadError, isSwitching, workspaceError, switchWorkspace, hasPermission, refreshWorkspaces, loadWorkspaces, onWorkspaceCreated, retryInit, clearWorkspaceError]);
 
   return (
     <WorkspaceContext.Provider value={value}>

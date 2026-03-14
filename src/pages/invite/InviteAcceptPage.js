@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Users, Check, AlertTriangle, Loader2 } from 'lucide-react';
+import { Users, Check, AlertTriangle, Loader2, Clock, XCircle, CheckCircle2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useValidateInviteToken, useAcceptInvite } from '../../hooks/useInvites';
@@ -29,6 +29,13 @@ export default function InviteAcceptPage() {
     }
   }, [token, navigate]);
 
+  // Store token in sessionStorage for signup-then-accept flow (Case B)
+  useEffect(() => {
+    if (token) {
+      sessionStorage.setItem('golinks_pending_invite_token', token);
+    }
+  }, [token]);
+
   const handleAccept = async () => {
     if (!user) {
       // Not logged in — redirect to login with return URL
@@ -38,6 +45,8 @@ export default function InviteAcceptPage() {
 
     try {
       const result = await acceptInvite(token);
+      // Clear the pending invite token
+      sessionStorage.removeItem('golinks_pending_invite_token');
       await refreshWorkspaces();
       toast.success('Welcome to the workspace!');
       navigate(ROUTES.DASHBOARD, { replace: true });
@@ -46,8 +55,125 @@ export default function InviteAcceptPage() {
     }
   };
 
-  const isExpired = validation && !validation.valid;
+  // Determine specific error states
+  const errorCode = validationError?.response?.data?.code || validation?.code;
+  const isExpired = errorCode === 'INVITE_EXPIRED' || (validation && !validation.valid && validation.reason === 'expired');
+  const isRevoked = errorCode === 'INVITE_REVOKED' || (validation && !validation.valid && validation.reason === 'revoked');
+  const isAlreadyAccepted = errorCode === 'ALREADY_ACCEPTED' || (validation && !validation.valid && validation.reason === 'already_accepted');
+  const isGenericError = (validationError || (validation && !validation.valid)) && !isExpired && !isRevoked && !isAlreadyAccepted;
   const isValid = validation && validation.valid;
+
+  const renderErrorContent = () => {
+    if (isExpired) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 bg-warning/10 border-2 border-warning flex items-center justify-center">
+              <Clock className="w-6 h-6 text-warning" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-text-primary">Invite expired</h1>
+              <p className="text-text-secondary text-sm mt-1">
+                This invitation link has expired. Please ask the workspace admin to send a new invite.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Link to={ROUTES.DASHBOARD}>
+              <Button variant="secondary" fullWidth>
+                Go to dashboard
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
+      );
+    }
+
+    if (isRevoked) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 bg-danger/10 border-2 border-danger flex items-center justify-center">
+              <XCircle className="w-6 h-6 text-danger" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-text-primary">Invite revoked</h1>
+              <p className="text-text-secondary text-sm mt-1">
+                This invitation was revoked by an admin. Contact the workspace owner if you still need access.
+              </p>
+            </div>
+          </div>
+          <Link to={ROUTES.DASHBOARD}>
+            <Button variant="secondary" fullWidth>
+              Go to dashboard
+            </Button>
+          </Link>
+        </motion.div>
+      );
+    }
+
+    if (isAlreadyAccepted) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-sm"
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 bg-success/10 border-2 border-success flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6 text-success" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-text-primary">Already accepted</h1>
+              <p className="text-text-secondary text-sm mt-1">
+                You've already accepted this invitation. Head to the workspace to get started.
+              </p>
+            </div>
+          </div>
+          <Link to={ROUTES.DASHBOARD}>
+            <Button fullWidth>
+              Go to workspace
+            </Button>
+          </Link>
+        </motion.div>
+      );
+    }
+
+    // Generic error fallback
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-sm"
+      >
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 bg-danger/10 border-2 border-danger flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-danger" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-text-primary">Invite invalid</h1>
+            <p className="text-text-secondary text-sm mt-1">
+              {validation?.message || 'This invite link is expired, revoked, or already used.'}
+            </p>
+          </div>
+        </div>
+
+        <Link to={ROUTES.DASHBOARD}>
+          <Button variant="secondary" fullWidth>
+            Go to dashboard
+          </Button>
+        </Link>
+      </motion.div>
+    );
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-background-main">
@@ -118,32 +244,8 @@ export default function InviteAcceptPage() {
               </motion.div>
             )}
 
-            {/* Error / invalid */}
-            {(validationError || isExpired) && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="w-full max-w-sm"
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-12 h-12 bg-danger/10 border-2 border-danger flex items-center justify-center">
-                    <AlertTriangle className="w-6 h-6 text-danger" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-text-primary">Invite invalid</h1>
-                    <p className="text-text-secondary text-sm mt-1">
-                      {validation?.message || 'This invite link is expired, revoked, or already used.'}
-                    </p>
-                  </div>
-                </div>
-
-                <Link to={ROUTES.DASHBOARD}>
-                  <Button variant="secondary" fullWidth>
-                    Go to dashboard
-                  </Button>
-                </Link>
-              </motion.div>
-            )}
+            {/* Error states — differentiated */}
+            {!validating && (isExpired || isRevoked || isAlreadyAccepted || isGenericError) && renderErrorContent()}
 
             {/* Valid invite */}
             {isValid && !validating && (
@@ -191,7 +293,7 @@ export default function InviteAcceptPage() {
                       className="block"
                     >
                       <Button variant="secondary" fullWidth>
-                        Create account
+                        Create account and join workspace
                       </Button>
                     </Link>
                   </div>

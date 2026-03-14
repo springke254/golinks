@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { KeyRound, Link2, Users, Building2 } from 'lucide-react';
 
@@ -14,8 +15,26 @@ const TABS = [
   { key: 'workspace', label: 'Workspace', icon: Building2 },
 ];
 
+const VALID_TAB_KEYS = TABS.map((t) => t.key);
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('sessions');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    VALID_TAB_KEYS.includes(tabFromUrl) ? tabFromUrl : 'sessions'
+  );
+
+  // Sync tab from URL query param
+  useEffect(() => {
+    if (tabFromUrl && VALID_TAB_KEYS.includes(tabFromUrl) && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl);
+    }
+  }, [tabFromUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTabChange = (key) => {
+    setActiveTab(key);
+    setSearchParams({ tab: key }, { replace: true });
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -32,7 +51,7 @@ export default function SettingsPage() {
           return (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => handleTabChange(tab.key)}
               className={`
                 flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-[2px] transition-colors whitespace-nowrap
                 ${

@@ -6,10 +6,21 @@ let refreshPromise = null;
 // Custom event for rate-limit notifications
 export const RATE_LIMIT_EVENT = 'golinks:rate-limit';
 
+// Custom event for workspace errors (403 NO_WORKSPACE / NO_MEMBERSHIP)
+export const WORKSPACE_ERROR_EVENT = 'golinks:workspace-error';
+
 export function dispatchRateLimitEvent(retryAfter, message) {
   window.dispatchEvent(
     new CustomEvent(RATE_LIMIT_EVENT, {
       detail: { retryAfter, message },
+    })
+  );
+}
+
+export function dispatchWorkspaceError(code, message) {
+  window.dispatchEvent(
+    new CustomEvent(WORKSPACE_ERROR_EVENT, {
+      detail: { code, message },
     })
   );
 }
@@ -58,6 +69,17 @@ api.interceptors.response.use(
       dispatchRateLimitEvent(retryAfter, message);
 
       return Promise.reject(error);
+    }
+
+    // --- 403 Workspace-specific errors ---
+    if (error.response?.status === 403) {
+      const code = error.response.data?.code;
+      if (code === 'NO_WORKSPACE' || code === 'NO_MEMBERSHIP') {
+        dispatchWorkspaceError(
+          code,
+          error.response.data?.message || 'You are not a member of this workspace'
+        );
+      }
     }
 
     // --- 401 Unauthorized with silent token refresh ---
