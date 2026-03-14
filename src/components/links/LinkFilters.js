@@ -31,10 +31,6 @@ export default function LinkFilters({ filters, onChange }) {
     onChange({ ...filters, tags: newTags.length > 0 ? newTags : undefined });
   };
 
-  const activeFilterCount =
-    (filters.tags?.length || 0) +
-    (filters.isActive !== undefined ? 1 : 0);
-
   return (
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">

@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Building2, Link2, Loader2, Check, X, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { updateWorkspaceSchema, nameToSlug } from '../../schemas/workspaceSchemas';
+import { updateWorkspaceSchema } from '../../schemas/workspaceSchemas';
 import { useWorkspace } from '../../hooks/useWorkspace';
 import { updateWorkspace, deleteWorkspace, checkWorkspaceSlug } from '../../services/workspaceService';
 import { WORKSPACE_ROLES } from '../../utils/constants';

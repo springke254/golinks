@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Shield } from 'lucide-react';
@@ -6,13 +6,11 @@ import { Mail, Shield } from 'lucide-react';
 import { inviteSchema } from '../../schemas/workspaceSchemas';
 import { useCreateInvite } from '../../hooks/useInvites';
 import { WORKSPACE_ROLES } from '../../utils/constants';
-import { useWorkspace } from '../../hooks/useWorkspace';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 
 export default function InviteMemberModal({ open, onClose }) {
-  const { activeWorkspace } = useWorkspace();
   const createInvite = useCreateInvite();
 
   const {

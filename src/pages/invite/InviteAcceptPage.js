@@ -17,7 +17,7 @@ export default function InviteAcceptPage() {
   const token = searchParams.get('token');
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { onWorkspaceCreated, refreshWorkspaces } = useWorkspace();
+  const { refreshWorkspaces } = useWorkspace();
 
   const { data: validation, isLoading: validating, error: validationError } = useValidateInviteToken(token);
   const { mutateAsync: acceptInvite, isPending: accepting } = useAcceptInvite();
@@ -44,7 +44,7 @@ export default function InviteAcceptPage() {
     }
 
     try {
-      const result = await acceptInvite(token);
+      await acceptInvite(token);
       // Clear the pending invite token
       sessionStorage.removeItem('golinks_pending_invite_token');
       await refreshWorkspaces();

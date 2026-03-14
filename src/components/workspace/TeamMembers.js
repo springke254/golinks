@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, Mail, Shield, MoreHorizontal, UserMinus, ChevronDown, Loader2, LogOut } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { Mail, Shield, MoreHorizontal, UserMinus, Loader2, LogOut } from 'lucide-react';
 
 import { useMembers, useUpdateMemberRole, useRemoveMember, useLeaveWorkspace } from '../../hooks/useMembers';
-import { useInvites, useCreateInvite, useRevokeInvite, useResendInvite } from '../../hooks/useInvites';
+import { useInvites, useRevokeInvite, useResendInvite } from '../../hooks/useInvites';
 import { useWorkspace } from '../../hooks/useWorkspace';
 import { useAuth } from '../../hooks/useAuth';
 import { WORKSPACE_ROLES } from '../../utils/constants';
 import Button from '../ui/Button';
 import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
-import Input from '../ui/Input';
 import InviteMemberModal from './InviteMemberModal';
 
 const ROLE_BADGE = {
@@ -29,7 +27,7 @@ export default function TeamMembers() {
   const leaveWorkspace = useLeaveWorkspace();
 
   const { data: membersData, isLoading: membersLoading } = useMembers({ page: 0, size: 50 });
-  const { data: invitesData, isLoading: invitesLoading } = useInvites({ page: 0, size: 50 });
+  const { data: invitesData } = useInvites({ page: 0, size: 50 });
 
   const canManageMembers = hasPermission('MANAGE_MEMBERS');
   const canManageInvites = hasPermission('MANAGE_INVITES');

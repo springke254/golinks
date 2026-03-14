@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Check, Plus, Search, Building2, Users } from 'lucide-react';
+import { ChevronDown, Check, Plus, Search, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useWorkspace } from '../../hooks/useWorkspace';
