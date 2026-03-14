@@ -29,33 +29,33 @@ describe('LoginForm', () => {
 
   it('renders email and password inputs', () => {
     renderWithRouter(<LoginForm />);
-    expect(screen.getByPlaceholderText(/enter your email/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/enter your password/i)).toBeInTheDocument();
   });
 
   it('renders sign in button', () => {
     renderWithRouter(<LoginForm />);
-    expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^sign in$/i })).toBeInTheDocument();
   });
 
   it('renders OAuth buttons', () => {
     renderWithRouter(<LoginForm />);
-    expect(screen.getByText(/continue with google/i)).toBeInTheDocument();
-    expect(screen.getByText(/continue with github/i)).toBeInTheDocument();
+    expect(screen.getByText(/sign in with google/i)).toBeInTheDocument();
+    expect(screen.getByText(/sign in with github/i)).toBeInTheDocument();
   });
 
   it('renders links to signup and forgot password', () => {
     renderWithRouter(<LoginForm />);
-    expect(screen.getByText(/create an account/i)).toBeInTheDocument();
+    expect(screen.getByText(/^sign up$/i)).toBeInTheDocument();
     expect(screen.getByText(/forgot password/i)).toBeInTheDocument();
   });
 
   it('shows validation errors for empty form submission', async () => {
     renderWithRouter(<LoginForm />);
-    fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }));
     await waitFor(() => {
-      // Zod will show validation messages
-      expect(screen.getAllByRole('alert').length).toBeGreaterThanOrEqual(0);
+      expect(screen.getByText(/email is required/i)).toBeInTheDocument();
+      expect(screen.getByText(/password is required/i)).toBeInTheDocument();
     });
   });
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter, MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router-dom';
 
 import Sidebar from '../components/layout/Sidebar';
 
@@ -11,6 +11,8 @@ jest.mock('../hooks/useAuth', () => ({
     logout: mockLogout,
   }),
 }));
+
+jest.mock('../components/workspace/WorkspaceSwitcher', () => () => <div>WorkspaceSwitcher</div>);
 
 function renderWithRouter(ui, { route = '/' } = {}) {
   return render(<MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>);

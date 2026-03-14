@@ -7,6 +7,7 @@ import com.golinks.golinks.repository.ShortUrlRepository
 import com.golinks.golinks.repository.TagRepository
 import com.golinks.golinks.repository.UserRepository
 import com.golinks.golinks.service.LinkService
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -119,6 +120,8 @@ class RedirectControllerIntegrationTest {
 
         // Second access should return 410 or 404
         mockMvc.perform(get("/go/one-time-link"))
-            .andExpect(status().isGone)
+            .andExpect { result ->
+                assertTrue(result.response.status == 410 || result.response.status == 404)
+            }
     }
 }

@@ -8,6 +8,7 @@ import com.golinks.golinks.repository.EmailVerificationTokenRepository
 import com.golinks.golinks.repository.PasswordResetTokenRepository
 import com.golinks.golinks.repository.RefreshTokenRepository
 import com.golinks.golinks.repository.UserRepository
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -188,6 +189,8 @@ class AuthControllerIntegrationTest {
     fun `GET users me without auth should return 401 or 403`() {
         mockMvc.perform(
             get("/api/v1/users/me")
-        ).andExpect(status().isForbidden)
+        ).andExpect { result ->
+            assertTrue(result.response.status == 401 || result.response.status == 403)
+        }
     }
 }

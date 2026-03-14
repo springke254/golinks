@@ -3,8 +3,8 @@ package com.golinks.golinks.service
 import com.golinks.golinks.dto.CreateLinkRequest
 import com.golinks.golinks.dto.UpdateLinkRequest
 import com.golinks.golinks.entity.User
+import com.golinks.golinks.exception.DuplicateSlugException
 import com.golinks.golinks.exception.LinkNotFoundException
-import com.golinks.golinks.exception.SlugAlreadyExistsException
 import com.golinks.golinks.messaging.NotificationProducer
 import com.golinks.golinks.repository.ShortUrlRepository
 import com.golinks.golinks.repository.TagRepository
@@ -100,7 +100,7 @@ class LinkServiceTest {
         )
         linkService.createLink(testUser.id!!, request)
 
-        assertThrows<SlugAlreadyExistsException> {
+        assertThrows<DuplicateSlugException> {
             linkService.createLink(testUser.id!!, request)
         }
     }
@@ -168,7 +168,7 @@ class LinkServiceTest {
             )
         }
 
-        val result = linkService.getLinks(testUser.id!!, null, null, 3)
+        val result = linkService.getLinks(testUser.id!!, null, null, 0, 3)
 
         assertEquals(3, result.items.size)
         assertNotNull(result.nextCursor)
@@ -185,7 +185,7 @@ class LinkServiceTest {
             CreateLinkRequest(destinationUrl = "https://github.com", slug = "github-repo")
         )
 
-        val result = linkService.getLinks(testUser.id!!, "google", null, 20)
+        val result = linkService.getLinks(testUser.id!!, "google", null, 0, 20)
 
         assertEquals(1, result.items.size)
         assertEquals("google-search", result.items[0].slug)
@@ -305,6 +305,6 @@ class LinkServiceTest {
 
         val result = linkService.bulkSoftDelete(testUser.id!!, ids)
 
-        assertEquals(3, result.deletedCount)
+        assertEquals(3, result.successCount)
     }
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 
 import SignupForm from '../components/auth/SignupForm';
@@ -42,7 +42,7 @@ describe('SignupForm', () => {
   it('renders password strength indicator when typing', () => {
     renderWithRouter(<SignupForm />);
     const passwordInput = screen.getByPlaceholderText(/create a password/i);
-    fireEvent.change(passwordInput, { target: { value: 'Ab1!' } });
+    fireEvent.change(passwordInput, { target: { value: 'Abcdefg' } });
     // Strength bar segments should be visible
     expect(screen.getByText(/weak/i)).toBeInTheDocument();
   });
