@@ -91,6 +91,10 @@ export function WorkspaceProvider({ children }) {
     queryClient.invalidateQueries({ queryKey: ['analytics-timeseries'] });
     queryClient.invalidateQueries({ queryKey: ['analytics-referrers'] });
     queryClient.invalidateQueries({ queryKey: ['analytics-top-links'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-heatmap-availability'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-heatmap'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-sessions'] });
+    queryClient.invalidateQueries({ queryKey: ['analytics-session-events'] });
     queryClient.invalidateQueries({ queryKey: ['auditLogs'] });
     queryClient.invalidateQueries({ queryKey: ['auditActions'] });
     queryClient.invalidateQueries({ queryKey: ['members'] });

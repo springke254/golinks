@@ -147,6 +147,78 @@ data class TopLinkResponse(
     val clicks: Long
 )
 
+data class HeatmapAvailabilityResponse(
+    val ready: Boolean,
+    val dimensions: List<String>,
+    val earliestBucket: Instant?,
+    val latestBucket: Instant?,
+    val updatedAt: Instant?,
+    val periodFrom: Instant,
+    val periodTo: Instant
+)
+
+data class HeatmapPointResponse(
+    val bucketStart: Instant,
+    val key: String,
+    val clicks: Long
+)
+
+data class HeatmapBucketTotalResponse(
+    val key: String,
+    val clicks: Long
+)
+
+data class HeatmapResponse(
+    val dimension: String,
+    val data: List<HeatmapPointResponse>,
+    val totals: List<HeatmapBucketTotalResponse>,
+    val periodFrom: Instant,
+    val periodTo: Instant,
+    val updatedAt: Instant?
+)
+
+data class SessionSummaryResponse(
+    val id: UUID,
+    val visitorId: String,
+    val startedAt: Instant,
+    val endedAt: Instant,
+    val durationSeconds: Long,
+    val clicks: Long,
+    val entrySlug: String?,
+    val exitSlug: String?,
+    val osName: String?,
+    val deviceType: String?,
+    val country: String?
+)
+
+data class PaginatedSessionsResponse(
+    val items: List<SessionSummaryResponse>,
+    val page: Int,
+    val pageSize: Int,
+    val totalItems: Long,
+    val totalPages: Int,
+    val updatedAt: Instant?
+)
+
+data class SessionEventResponse(
+    val slug: String,
+    val clickedAt: Instant,
+    val referrer: String?,
+    val country: String?,
+    val osName: String?,
+    val browserName: String?,
+    val deviceType: String?
+)
+
+data class SessionEventsResponse(
+    val sessionId: UUID,
+    val items: List<SessionEventResponse>,
+    val page: Int,
+    val pageSize: Int,
+    val totalItems: Long,
+    val totalPages: Int
+)
+
 // ── Audit ────────────────────────────────────────────────
 
 data class AuditLogResponse(

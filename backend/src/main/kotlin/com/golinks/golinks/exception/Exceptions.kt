@@ -52,3 +52,5 @@ class AlreadyMemberException(message: String = "User is already a member of this
 class LastOwnerException(message: String = "Cannot remove the last owner — transfer ownership first") : RuntimeException(message)
 
 class DuplicateSlugWorkspaceException(message: String = "A workspace with this slug already exists") : RuntimeException(message)
+
+class SessionNotFoundException(message: String = "Session not found") : RuntimeException(message)

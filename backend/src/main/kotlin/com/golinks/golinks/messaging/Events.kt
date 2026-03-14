@@ -28,7 +28,8 @@ data class ClickEvent(
     val timestamp: Instant? = null,
     val ip: String? = null,
     val userAgent: String? = null,
-    val referrer: String? = null
+    val referrer: String? = null,
+    val acceptLanguage: String? = null
 ) : Serializable
 
 data class BulkImportEvent(

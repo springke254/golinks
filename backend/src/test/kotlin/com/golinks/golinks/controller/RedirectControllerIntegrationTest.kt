@@ -3,10 +3,12 @@ package com.golinks.golinks.controller
 import com.golinks.golinks.dto.CreateLinkRequest
 import com.golinks.golinks.entity.User
 import com.golinks.golinks.messaging.NotificationProducer
+import com.golinks.golinks.repository.ClickEventRepository
 import com.golinks.golinks.repository.ShortUrlRepository
 import com.golinks.golinks.repository.TagRepository
 import com.golinks.golinks.repository.UserRepository
 import com.golinks.golinks.service.LinkService
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -19,6 +21,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import java.time.Instant
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -33,6 +36,9 @@ class RedirectControllerIntegrationTest {
 
     @Autowired
     private lateinit var shortUrlRepository: ShortUrlRepository
+
+    @Autowired
+    private lateinit var clickEventRepository: ClickEventRepository
 
     @Autowired
     private lateinit var tagRepository: TagRepository
@@ -66,7 +72,7 @@ class RedirectControllerIntegrationTest {
 
     @Test
     fun `GET go_slug should redirect to destination`() {
-        val link = linkService.createLink(
+        linkService.createLink(
             testUser.id!!,
             CreateLinkRequest(
                 destinationUrl = "https://example.com/destination",
@@ -77,6 +83,32 @@ class RedirectControllerIntegrationTest {
         mockMvc.perform(get("/go/redirect-test"))
             .andExpect(status().isFound)
             .andExpect(header().string("Location", "https://example.com/destination"))
+    }
+
+    @Test
+    fun `GET go_slug should record click count and event`() {
+        linkService.createLink(
+            testUser.id!!,
+            CreateLinkRequest(
+                destinationUrl = "https://example.com/click-track",
+                slug = "click-track"
+            )
+        )
+
+        mockMvc.perform(get("/go/click-track"))
+            .andExpect(status().isFound)
+            .andExpect(header().string("Location", "https://example.com/click-track"))
+
+        val saved = shortUrlRepository.findBySlugAndDeletedFalse("click-track")
+        assertEquals(1, saved?.clicksCount)
+
+        val now = Instant.now()
+        val events = clickEventRepository.countBySlugInAndCreatedAtBetween(
+            listOf("click-track"),
+            now.minusSeconds(120),
+            now.plusSeconds(120)
+        )
+        assertEquals(1, events)
     }
 
     @Test

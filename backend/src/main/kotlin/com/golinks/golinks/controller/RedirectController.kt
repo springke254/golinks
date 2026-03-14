@@ -139,7 +139,7 @@ class RedirectController(
             }
 
             if (redirectService.verifyPassword(shortUrl, body.password)) {
-                redirectService.recordClick(slug, null)
+                redirectService.recordClick(slug, request)
 
                 // Return JSON with redirect URL (frontend will handle the redirect)
                 return ResponseEntity.ok(mapOf(

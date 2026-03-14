@@ -9,6 +9,7 @@ import com.golinks.golinks.repository.ShortUrlRepository
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.amqp.rabbit.core.RabbitTemplate
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.redis.core.StringRedisTemplate
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -27,7 +28,10 @@ class RedirectService(
     private val redisTemplate: StringRedisTemplate,
     private val passwordEncoder: PasswordEncoder,
     private val rabbitTemplate: RabbitTemplate,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val clickIngestionService: ClickIngestionService,
+    @Value("\${app.analytics.click-tracking-mode:sync}")
+    private val clickTrackingMode: String
 ) {
 
     private val logger = LoggerFactory.getLogger(RedirectService::class.java)
@@ -136,10 +140,10 @@ class RedirectService(
     }
 
     /**
-     * Publish a compact ClickEvent to RabbitMQ for asynchronous analytics.
-     * Includes IP, User-Agent, referrer and timestamp.
-     * The redirect response is NEVER gated on this — it's fire-and-forget
-     * with a synchronous DB fallback only if RabbitMQ publish fails.
+     * Record a click using the configured mode:
+     * - sync (default): write directly to DB
+     * - async: publish to RabbitMQ, fallback to direct write on publish failure
+     * - hybrid: direct write + best-effort publish
      */
     fun recordClick(slug: String, request: HttpServletRequest?) {
         val event = ClickEvent(
@@ -147,18 +151,47 @@ class RedirectService(
             timestamp = Instant.now(),
             ip = request?.let { extractClientIp(it) },
             userAgent = request?.getHeader("User-Agent"),
-            referrer = request?.getHeader("Referer")
+            referrer = request?.getHeader("Referer"),
+            acceptLanguage = request?.getHeader("Accept-Language")
         )
 
+        when (clickTrackingMode.lowercase()) {
+            "async" -> publishAsyncWithFallback(event)
+            "hybrid" -> {
+                ingestSync(event)
+                publishAsyncBestEffort(event)
+            }
+            else -> ingestSync(event)
+        }
+    }
+
+    private fun publishAsyncWithFallback(event: ClickEvent) {
         try {
             rabbitTemplate.convertAndSend(RabbitConfig.LINK_CLICK_QUEUE, event)
         } catch (ex: Exception) {
-            logger.warn("Failed to publish click event for slug=$slug: ${ex.message}")
-            // Synchronous fallback — minimal DB update
+            logger.warn("Failed to publish click event for slug={}: {}. Falling back to sync ingestion", event.slug, ex.message)
+            ingestSync(event)
+        }
+    }
+
+    private fun publishAsyncBestEffort(event: ClickEvent) {
+        try {
+            rabbitTemplate.convertAndSend(RabbitConfig.LINK_CLICK_QUEUE, event)
+        } catch (ex: Exception) {
+            logger.debug("Best-effort async publish skipped for slug={}: {}", event.slug, ex.message)
+        }
+    }
+
+    private fun ingestSync(event: ClickEvent) {
+        try {
+            clickIngestionService.ingest(event)
+        } catch (ex: Exception) {
+            logger.warn("Synchronous click ingestion failed for slug={}: {}", event.slug, ex.message)
+            // Last-resort fallback: preserve at least aggregate count.
             try {
-                shortUrlRepository.incrementClickCount(slug)
+                shortUrlRepository.incrementClickCount(event.slug)
             } catch (dbEx: Exception) {
-                logger.error("Failed to increment click count for slug=$slug: ${dbEx.message}")
+                logger.error("Failed to increment click count for slug={}: {}", event.slug, dbEx.message)
             }
         }
     }

@@ -68,6 +68,60 @@ class AnalyticsController(
         return ResponseEntity.ok(analyticsService.getTopLinks(userId, fromInstant, toInstant, limit.coerceIn(1, 50)))
     }
 
+    @GetMapping("/heatmap/availability")
+    fun getHeatmapAvailability(
+        @RequestParam(required = false) from: String?,
+        @RequestParam(required = false) to: String?
+    ): ResponseEntity<HeatmapAvailabilityResponse> {
+        val userId = getCurrentUserId()
+        val (fromInstant, toInstant) = parseDateRange(from, to)
+        return ResponseEntity.ok(analyticsService.getHeatmapAvailability(userId, fromInstant, toInstant))
+    }
+
+    @GetMapping("/heatmap")
+    fun getHeatmap(
+        @RequestParam dimension: String,
+        @RequestParam(required = false) from: String?,
+        @RequestParam(required = false) to: String?,
+        @RequestParam(required = false) slug: String?,
+        @RequestParam(defaultValue = "25") limit: Int
+    ): ResponseEntity<HeatmapResponse> {
+        val userId = getCurrentUserId()
+        val (fromInstant, toInstant) = parseDateRange(from, to)
+        return ResponseEntity.ok(
+            analyticsService.getHeatmap(
+                userId = userId,
+                dimension = dimension,
+                from = fromInstant,
+                to = toInstant,
+                slug = slug,
+                limit = limit.coerceIn(1, 100)
+            )
+        )
+    }
+
+    @GetMapping("/sessions")
+    fun getSessions(
+        @RequestParam(required = false) from: String?,
+        @RequestParam(required = false) to: String?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "10") limit: Int
+    ): ResponseEntity<PaginatedSessionsResponse> {
+        val userId = getCurrentUserId()
+        val (fromInstant, toInstant) = parseDateRange(from, to)
+        return ResponseEntity.ok(analyticsService.getSessions(userId, fromInstant, toInstant, page, limit))
+    }
+
+    @GetMapping("/sessions/{sessionId}/events")
+    fun getSessionEvents(
+        @PathVariable sessionId: UUID,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") limit: Int
+    ): ResponseEntity<SessionEventsResponse> {
+        val userId = getCurrentUserId()
+        return ResponseEntity.ok(analyticsService.getSessionEvents(userId, sessionId, page, limit))
+    }
+
     private fun parseDateRange(from: String?, to: String?): Pair<Instant, Instant> {
         val toInstant = if (!to.isNullOrBlank()) {
             try { Instant.parse(to) } catch (e: Exception) { Instant.now() }

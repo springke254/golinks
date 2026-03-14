@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   BarChart3,
@@ -8,8 +8,15 @@ import {
   Trophy,
   ExternalLink,
   Globe,
+  Monitor,
+  Apple,
+  Smartphone,
+  Tablet,
+  Terminal,
+  Clock3,
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import {
   AreaChart,
   Area,
@@ -25,8 +32,14 @@ import {
   useAnalyticsTimeSeries,
   useAnalyticsReferrers,
   useAnalyticsTopLinks,
+  useAnalyticsHeatmapAvailability,
+  useAnalyticsHeatmap,
+  useAnalyticsSessions,
+  useAnalyticsSessionEvents,
 } from '../../hooks/useAnalytics';
 import Skeleton from '../../components/ui/Skeleton';
+
+dayjs.extend(relativeTime);
 
 const RANGE_OPTIONS = [
   { label: '7d', days: 7 },
@@ -57,8 +70,53 @@ function CustomTooltip({ active, payload, label }) {
   );
 }
 
+function formatDuration(seconds = 0) {
+  const safe = Number(seconds) || 0;
+  const hrs = Math.floor(safe / 3600);
+  const mins = Math.floor((safe % 3600) / 60);
+  const secs = safe % 60;
+  if (hrs > 0) return `${hrs}h ${mins}m`;
+  if (mins > 0) return `${mins}m ${secs}s`;
+  return `${secs}s`;
+}
+
+function getOsIcon(osName) {
+  const value = String(osName || '').toLowerCase();
+  if (value.includes('ios') || value.includes('mac')) return Apple;
+  if (value.includes('android')) return Smartphone;
+  if (value.includes('windows')) return Monitor;
+  if (value.includes('linux') || value.includes('chrome os')) return Terminal;
+  return Globe;
+}
+
+function getDeviceIcon(deviceType) {
+  const value = String(deviceType || '').toLowerCase();
+  if (value.includes('mobile')) return Smartphone;
+  if (value.includes('tablet')) return Tablet;
+  if (value.includes('desktop')) return Monitor;
+  return Globe;
+}
+
+function FreshnessBadge({ updatedAt, fallback = 'Warming up' }) {
+  const parsed = updatedAt ? dayjs(updatedAt) : null;
+  const isValid = !!parsed && parsed.isValid();
+  const label = isValid ? `Updated ${parsed.fromNow()}` : fallback;
+
+  return (
+    <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-text-muted border border-border-strong bg-dark-elevated">
+      {label}
+    </span>
+  );
+}
+
 export default function AnalyticsPage() {
+  const SESSIONS_PAGE_SIZE = 8;
+  const SESSION_EVENTS_PAGE_SIZE = 20;
+
   const [rangeDays, setRangeDays] = useState(30);
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [sessionsPage, setSessionsPage] = useState(0);
+  const [sessionEventsPage, setSessionEventsPage] = useState(0);
 
   const { from, to } = useMemo(() => {
     const toDate = dayjs().endOf('day').toISOString();
@@ -66,10 +124,102 @@ export default function AnalyticsPage() {
     return { from: fromDate, to: toDate };
   }, [rangeDays]);
 
-  const { data: summary, isLoading: summaryLoading } = useAnalyticsSummary(from, to);
-  const { data: timeSeries, isLoading: tsLoading } = useAnalyticsTimeSeries(from, to);
-  const { data: referrers, isLoading: refLoading } = useAnalyticsReferrers(from, to);
-  const { data: topLinks, isLoading: tlLoading } = useAnalyticsTopLinks(from, to);
+  const {
+    data: summary,
+    isLoading: summaryLoading,
+    dataUpdatedAt: summaryFetchedAt,
+  } = useAnalyticsSummary(from, to);
+  const {
+    data: timeSeries,
+    isLoading: tsLoading,
+    dataUpdatedAt: timeSeriesFetchedAt,
+  } = useAnalyticsTimeSeries(from, to);
+  const {
+    data: referrers,
+    isLoading: refLoading,
+    dataUpdatedAt: referrersFetchedAt,
+  } = useAnalyticsReferrers(from, to);
+  const {
+    data: topLinks,
+    isLoading: tlLoading,
+    dataUpdatedAt: topLinksFetchedAt,
+  } = useAnalyticsTopLinks(from, to);
+  const {
+    data: heatmapAvailability,
+    dataUpdatedAt: heatmapAvailabilityFetchedAt,
+  } = useAnalyticsHeatmapAvailability(from, to);
+  const {
+    data: countryHeatmap,
+    isLoading: countryLoading,
+    dataUpdatedAt: countryFetchedAt,
+  } = useAnalyticsHeatmap('country', from, to);
+  const {
+    data: osHeatmap,
+    isLoading: osLoading,
+    dataUpdatedAt: osFetchedAt,
+  } = useAnalyticsHeatmap('os', from, to);
+  const {
+    data: deviceHeatmap,
+    isLoading: deviceLoading,
+    dataUpdatedAt: deviceFetchedAt,
+  } = useAnalyticsHeatmap('device', from, to);
+  const {
+    data: sessions,
+    isLoading: sessionsLoading,
+    dataUpdatedAt: sessionsFetchedAt,
+  } = useAnalyticsSessions(from, to, sessionsPage, SESSIONS_PAGE_SIZE);
+  const {
+    data: sessionEvents,
+    isLoading: sessionEventsLoading,
+    dataUpdatedAt: sessionEventsFetchedAt,
+  } = useAnalyticsSessionEvents(
+    selectedSessionId,
+    sessionEventsPage,
+    SESSION_EVENTS_PAGE_SIZE,
+    !!selectedSessionId
+  );
+
+  const sessionItems = useMemo(() => sessions?.items || [], [sessions]);
+
+  useEffect(() => {
+    setSessionsPage(0);
+    setSessionEventsPage(0);
+    setSelectedSessionId(null);
+  }, [rangeDays]);
+
+  useEffect(() => {
+    if (!sessionItems.length) {
+      setSelectedSessionId(null);
+      return;
+    }
+    if (!selectedSessionId || !sessionItems.some((s) => s.id === selectedSessionId)) {
+      setSelectedSessionId(sessionItems[0].id);
+    }
+  }, [sessionItems, selectedSessionId]);
+
+  useEffect(() => {
+    setSessionEventsPage(0);
+  }, [selectedSessionId]);
+
+  useEffect(() => {
+    const totalPages = sessions?.totalPages || 0;
+    if (totalPages > 0) {
+      const maxPage = totalPages - 1;
+      if (sessionsPage > maxPage) {
+        setSessionsPage(maxPage);
+      }
+    }
+  }, [sessions?.totalPages, sessionsPage]);
+
+  useEffect(() => {
+    const totalPages = sessionEvents?.totalPages || 0;
+    if (totalPages > 0) {
+      const maxPage = totalPages - 1;
+      if (sessionEventsPage > maxPage) {
+        setSessionEventsPage(maxPage);
+      }
+    }
+  }, [sessionEvents?.totalPages, sessionEventsPage]);
 
   const chartData = useMemo(() => {
     if (!timeSeries?.data) return [];
@@ -102,6 +252,43 @@ export default function AnalyticsPage() {
       isText: true,
     },
   ];
+
+  const countryTotals = countryHeatmap?.totals || [];
+  const osTotals = osHeatmap?.totals || [];
+  const deviceTotals = deviceHeatmap?.totals || [];
+  const selectedSession = useMemo(
+    () => sessionItems.find((session) => session.id === selectedSessionId) || null,
+    [sessionItems, selectedSessionId]
+  );
+
+  const summaryFreshness = summaryFetchedAt || null;
+  const timeSeriesFreshness = timeSeriesFetchedAt || null;
+  const topLinksFreshness = topLinksFetchedAt || null;
+  const referrersFreshness = referrersFetchedAt || null;
+
+  const heatmapFreshness =
+    heatmapAvailability?.updatedAt ||
+    heatmapAvailabilityFetchedAt ||
+    countryHeatmap?.updatedAt ||
+    osHeatmap?.updatedAt ||
+    deviceHeatmap?.updatedAt ||
+    null;
+
+  const countryFreshness = countryHeatmap?.updatedAt || countryFetchedAt || heatmapFreshness;
+  const osFreshness = osHeatmap?.updatedAt || osFetchedAt || heatmapFreshness;
+  const deviceFreshness = deviceHeatmap?.updatedAt || deviceFetchedAt || heatmapFreshness;
+
+  const sessionsFreshness = sessions?.updatedAt || sessionsFetchedAt || null;
+  const sessionEventsFreshness = sessionEventsFetchedAt || null;
+
+  const sessionsTotalPages = sessions?.totalPages || 0;
+  const canPrevSessions = sessionsPage > 0;
+  const canNextSessions = sessionsTotalPages > 0 && sessionsPage + 1 < sessionsTotalPages;
+
+  const sessionEventsTotalPages = sessionEvents?.totalPages || 0;
+  const canPrevSessionEvents = sessionEventsPage > 0;
+  const canNextSessionEvents =
+    sessionEventsTotalPages > 0 && sessionEventsPage + 1 < sessionEventsTotalPages;
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
@@ -139,36 +326,43 @@ export default function AnalyticsPage() {
       </motion.div>
 
       {/* Summary Cards */}
-      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.label}
-              className="p-5 bg-dark-card border-2 border-border-strong space-y-3"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                  {stat.label}
-                </span>
-                <Icon className="w-4 h-4 text-text-muted" />
+      <motion.div variants={item} className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-text-secondary">Summary</h2>
+          <FreshnessBadge updatedAt={summaryFreshness} fallback="Waiting for data" />
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <div
+                key={stat.label}
+                className="p-5 bg-dark-card border-2 border-border-strong space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                    {stat.label}
+                  </span>
+                  <Icon className="w-4 h-4 text-text-muted" />
+                </div>
+                {summaryLoading ? (
+                  <Skeleton className="h-8 w-20" />
+                ) : (
+                  <p
+                    className={`font-bold text-text-primary ${
+                      stat.isText ? 'text-lg truncate' : 'text-2xl'
+                    }`}
+                  >
+                    {typeof stat.value === 'number'
+                      ? stat.value.toLocaleString()
+                      : stat.value}
+                  </p>
+                )}
               </div>
-              {summaryLoading ? (
-                <Skeleton className="h-8 w-20" />
-              ) : (
-                <p
-                  className={`font-bold text-text-primary ${
-                    stat.isText ? 'text-lg truncate' : 'text-2xl'
-                  }`}
-                >
-                  {typeof stat.value === 'number'
-                    ? stat.value.toLocaleString()
-                    : stat.value}
-                </p>
-              )}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </motion.div>
 
       {/* Time-Series Chart */}
@@ -176,9 +370,12 @@ export default function AnalyticsPage() {
         variants={item}
         className="bg-dark-card border-2 border-border-strong p-5"
       >
-        <h2 className="text-sm font-semibold text-text-secondary mb-4">
-          Clicks Over Time
-        </h2>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-sm font-semibold text-text-secondary">
+            Clicks Over Time
+          </h2>
+          <FreshnessBadge updatedAt={timeSeriesFreshness} fallback="Waiting for data" />
+        </div>
         {tsLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : chartData.length === 0 ? (
@@ -227,10 +424,13 @@ export default function AnalyticsPage() {
           variants={item}
           className="bg-dark-card border-2 border-border-strong p-5"
         >
-          <h2 className="text-sm font-semibold text-text-secondary mb-4 flex items-center gap-2">
-            <Trophy className="w-4 h-4 text-primary" />
-            Top Links
-          </h2>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-text-secondary flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-primary" />
+              Top Links
+            </h2>
+            <FreshnessBadge updatedAt={topLinksFreshness} fallback="Waiting for data" />
+          </div>
           {tlLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
@@ -273,10 +473,13 @@ export default function AnalyticsPage() {
           variants={item}
           className="bg-dark-card border-2 border-border-strong p-5"
         >
-          <h2 className="text-sm font-semibold text-text-secondary mb-4 flex items-center gap-2">
-            <ExternalLink className="w-4 h-4 text-primary" />
-            Top Referrers
-          </h2>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-sm font-semibold text-text-secondary flex items-center gap-2">
+              <ExternalLink className="w-4 h-4 text-primary" />
+              Top Referrers
+            </h2>
+            <FreshnessBadge updatedAt={referrersFreshness} fallback="Waiting for data" />
+          </div>
           {refLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
@@ -287,7 +490,7 @@ export default function AnalyticsPage() {
             <p className="text-text-muted text-sm py-8 text-center">No data yet.</p>
           ) : (
             <div className="space-y-1">
-              {referrers.map((ref, idx) => {
+              {referrers.map((ref) => {
                 const maxCount = referrers[0]?.count || 1;
                 const pct = Math.round((ref.count / maxCount) * 100);
                 return (
@@ -318,6 +521,312 @@ export default function AnalyticsPage() {
           )}
         </motion.div>
       </div>
+
+      {/* Heatmaps (pre-aggregated) */}
+      <motion.div variants={item} className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-text-secondary flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-primary" />
+            Heatmaps
+          </h2>
+          <FreshnessBadge updatedAt={heatmapFreshness} fallback="Aggregates warming up" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="bg-dark-card border-2 border-border-strong p-5">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-sm font-semibold text-text-secondary">Country Density</h3>
+              <FreshnessBadge updatedAt={countryFreshness} fallback="Warming up" />
+            </div>
+            {countryLoading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </div>
+            ) : !countryTotals.length ? (
+              <p className="text-text-muted text-sm py-8 text-center">No country heatmap data yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {countryTotals.map((bucket) => {
+                  const max = countryTotals[0]?.clicks || 1;
+                  const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
+                  return (
+                    <div
+                      key={`country-${bucket.key}`}
+                      className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
+                    >
+                      <div
+                        className="absolute inset-y-0 left-0 bg-primary/10"
+                        style={{ width: `${pct}%` }}
+                      />
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Globe className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                          <span className="text-sm text-text-primary truncate">{bucket.key}</span>
+                        </div>
+                        <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
+                          {bucket.clicks.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-dark-card border-2 border-border-strong p-5">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-sm font-semibold text-text-secondary">OS Density</h3>
+              <FreshnessBadge updatedAt={osFreshness} fallback="Warming up" />
+            </div>
+            {osLoading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </div>
+            ) : !osTotals.length ? (
+              <p className="text-text-muted text-sm py-8 text-center">No OS heatmap data yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {osTotals.map((bucket) => {
+                  const max = osTotals[0]?.clicks || 1;
+                  const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
+                  const Icon = getOsIcon(bucket.key);
+                  return (
+                    <div
+                      key={`os-${bucket.key}`}
+                      className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
+                    >
+                      <div
+                        className="absolute inset-y-0 left-0 bg-primary/10"
+                        style={{ width: `${pct}%` }}
+                      />
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Icon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                          <span className="text-sm text-text-primary truncate">{bucket.key}</span>
+                        </div>
+                        <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
+                          {bucket.clicks.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-dark-card border-2 border-border-strong p-5">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-sm font-semibold text-text-secondary">Device Density</h3>
+              <FreshnessBadge updatedAt={deviceFreshness} fallback="Warming up" />
+            </div>
+            {deviceLoading ? (
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-9 w-full" />
+                ))}
+              </div>
+            ) : !deviceTotals.length ? (
+              <p className="text-text-muted text-sm py-8 text-center">No device heatmap data yet.</p>
+            ) : (
+              <div className="space-y-1">
+                {deviceTotals.map((bucket) => {
+                  const max = deviceTotals[0]?.clicks || 1;
+                  const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
+                  const Icon = getDeviceIcon(bucket.key);
+                  return (
+                    <div
+                      key={`device-${bucket.key}`}
+                      className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
+                    >
+                      <div
+                        className="absolute inset-y-0 left-0 bg-primary/10"
+                        style={{ width: `${pct}%` }}
+                      />
+                      <div className="relative flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Icon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                          <span className="text-sm text-text-primary truncate">{bucket.key}</span>
+                        </div>
+                        <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
+                          {bucket.clicks.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Session-level analytics */}
+      <motion.div variants={item} className="bg-dark-card border-2 border-border-strong p-5 space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-text-secondary flex items-center gap-2">
+            <Clock3 className="w-4 h-4 text-primary" />
+            Session Timeline
+          </h2>
+          <FreshnessBadge updatedAt={sessionsFreshness} fallback="Warming up" />
+        </div>
+
+        {sessionsLoading ? (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Skeleton className="h-72 w-full" />
+            <Skeleton className="h-72 w-full" />
+          </div>
+        ) : !sessionItems.length ? (
+          <p className="text-text-muted text-sm py-8 text-center">No session data yet for this period.</p>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="border-2 border-border-strong bg-dark-elevated/40 p-2 space-y-2">
+              <div className="flex items-center justify-between gap-3 px-2 pt-1">
+                <span className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">
+                  Sessions
+                </span>
+                <span className="text-xs text-text-muted">
+                  {(sessions?.totalItems ?? 0).toLocaleString()} total
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                {sessionItems.map((session) => {
+                  const active = session.id === selectedSessionId;
+                  return (
+                    <button
+                      key={session.id}
+                      onClick={() => setSelectedSessionId(session.id)}
+                      className={`w-full text-left px-3 py-2.5 transition-colors border-2 ${
+                        active
+                          ? 'bg-primary/10 border-primary/40'
+                          : 'bg-dark-card border-transparent hover:bg-dark-elevated'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-text-primary truncate">
+                            {dayjs(session.startedAt).format('MMM D, HH:mm')} • {formatDuration(session.durationSeconds)}
+                          </p>
+                          <p className="text-xs text-text-muted truncate">
+                            {session.entrySlug ? `go/${session.entrySlug}` : 'Entry unknown'}
+                            {'  →  '}
+                            {session.exitSlug ? `go/${session.exitSlug}` : 'Exit unknown'}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold text-primary">{session.clicks.toLocaleString()}</p>
+                          <p className="text-[11px] text-text-muted">clicks</p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between gap-2 px-2 pt-2 border-t border-border-strong">
+                <button
+                  onClick={() => setSessionsPage((prev) => Math.max(0, prev - 1))}
+                  disabled={!canPrevSessions}
+                  className="px-2.5 py-1 text-xs font-semibold border border-border-strong bg-dark-card text-text-secondary hover:text-text-primary hover:bg-dark-elevated transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Prev
+                </button>
+                <span className="text-xs text-text-muted">
+                  Page {sessionsTotalPages ? sessionsPage + 1 : 0} / {sessionsTotalPages}
+                </span>
+                <button
+                  onClick={() => setSessionsPage((prev) => prev + 1)}
+                  disabled={!canNextSessions}
+                  className="px-2.5 py-1 text-xs font-semibold border border-border-strong bg-dark-card text-text-secondary hover:text-text-primary hover:bg-dark-elevated transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            <div className="border-2 border-border-strong bg-dark-elevated/40 p-4 space-y-3 min-h-[18rem]">
+              {!selectedSession ? (
+                <p className="text-sm text-text-muted">Select a session to inspect timeline events.</p>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
+                      <span className="px-2 py-1 border border-border-strong bg-dark-card">
+                        Visitor {selectedSession.visitorId?.slice(0, 8)}
+                      </span>
+                      <span className="px-2 py-1 border border-border-strong bg-dark-card">
+                        {selectedSession.osName || 'Other'}
+                      </span>
+                      <span className="px-2 py-1 border border-border-strong bg-dark-card">
+                        {selectedSession.deviceType || 'Unknown'}
+                      </span>
+                      <span className="px-2 py-1 border border-border-strong bg-dark-card">
+                        {selectedSession.country || 'Unknown'}
+                      </span>
+                    </div>
+                    <FreshnessBadge updatedAt={sessionEventsFreshness} fallback="Waiting for events" />
+                  </div>
+
+                  {sessionEventsLoading ? (
+                    <div className="space-y-2">
+                      {[...Array(4)].map((_, i) => (
+                        <Skeleton key={i} className="h-9 w-full" />
+                      ))}
+                    </div>
+                  ) : !sessionEvents?.items?.length ? (
+                    <p className="text-sm text-text-muted py-6 text-center">No event rows in this session.</p>
+                  ) : (
+                    <div className="space-y-1 max-h-72 overflow-auto pr-1">
+                      {sessionEvents.items.map((event, idx) => (
+                        <div
+                          key={`${event.clickedAt}-${event.slug}-${idx}`}
+                          className="px-3 py-2 bg-dark-card border border-border-strong"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-text-primary truncate">go/{event.slug}</p>
+                            <p className="text-xs text-text-muted shrink-0">
+                              {dayjs(event.clickedAt).format('HH:mm:ss')}
+                            </p>
+                          </div>
+                          <p className="text-xs text-text-muted truncate mt-0.5">
+                            {event.referrer || 'Direct'} • {event.osName || 'Other'} • {event.deviceType || 'Unknown'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border-strong">
+                    <button
+                      onClick={() => setSessionEventsPage((prev) => Math.max(0, prev - 1))}
+                      disabled={!canPrevSessionEvents}
+                      className="px-2.5 py-1 text-xs font-semibold border border-border-strong bg-dark-card text-text-secondary hover:text-text-primary hover:bg-dark-elevated transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-xs text-text-muted">
+                      Events {sessionEventsTotalPages ? sessionEventsPage + 1 : 0} / {sessionEventsTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setSessionEventsPage((prev) => prev + 1)}
+                      disabled={!canNextSessionEvents}
+                      className="px-2.5 py-1 text-xs font-semibold border border-border-strong bg-dark-card text-text-secondary hover:text-text-primary hover:bg-dark-elevated transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </motion.div>
     </motion.div>
   );
 }

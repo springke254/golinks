@@ -126,6 +126,16 @@ class GlobalExceptionHandler {
         )
     }
 
+    @ExceptionHandler(SessionNotFoundException::class)
+    fun handleSessionNotFound(ex: SessionNotFoundException): ResponseEntity<ApiErrorResponse> {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+            ApiErrorResponse(
+                status = 404,
+                message = ex.message ?: "Session not found"
+            )
+        )
+    }
+
     @ExceptionHandler(DuplicateSlugException::class)
     fun handleDuplicateSlug(ex: DuplicateSlugException): ResponseEntity<ApiErrorResponse> {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(

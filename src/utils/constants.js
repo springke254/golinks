@@ -56,6 +56,10 @@ export const API = {
     TIMESERIES: '/analytics/timeseries',
     REFERRERS: '/analytics/referrers',
     TOP_LINKS: '/analytics/top-links',
+    HEATMAP_AVAILABILITY: '/analytics/heatmap/availability',
+    HEATMAP: '/analytics/heatmap',
+    SESSIONS: '/analytics/sessions',
+    SESSION_EVENTS: (id) => `/analytics/sessions/${id}/events`,
   },
   AUDIT: {
     LIST: '/audit',

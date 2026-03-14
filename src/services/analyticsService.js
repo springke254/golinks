@@ -20,3 +20,23 @@ export const getAnalyticsTopLinks = async (params = {}) => {
   const { data } = await api.get(API.ANALYTICS.TOP_LINKS, { params });
   return data;
 };
+
+export const getAnalyticsHeatmapAvailability = async (params = {}) => {
+  const { data } = await api.get(API.ANALYTICS.HEATMAP_AVAILABILITY, { params });
+  return data;
+};
+
+export const getAnalyticsHeatmap = async (params = {}) => {
+  const { data } = await api.get(API.ANALYTICS.HEATMAP, { params });
+  return data;
+};
+
+export const getAnalyticsSessions = async (params = {}) => {
+  const { data } = await api.get(API.ANALYTICS.SESSIONS, { params });
+  return data;
+};
+
+export const getAnalyticsSessionEvents = async (sessionId, params = {}) => {
+  const { data } = await api.get(API.ANALYTICS.SESSION_EVENTS(sessionId), { params });
+  return data;
+};
