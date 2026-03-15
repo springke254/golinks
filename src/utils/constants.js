@@ -58,6 +58,8 @@ export const API = {
     TOP_LINKS: '/analytics/top-links',
     HEATMAP_AVAILABILITY: '/analytics/heatmap/availability',
     HEATMAP: '/analytics/heatmap',
+    HEATMAP_OPTIONS: '/analytics/heatmap/options',
+    LINK_SPARKLINES: '/analytics/link-sparklines',
     SESSIONS: '/analytics/sessions',
     SESSION_EVENTS: (id) => `/analytics/sessions/${id}/events`,
   },

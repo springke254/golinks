@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import Badge from '../ui/Badge';
 import CopyButton from '../ui/CopyButton';
+import LinkSparkline from './LinkSparkline';
 import { cn } from '../../utils/cn';
 
 dayjs.extend(relativeTime);
@@ -31,6 +32,8 @@ export default function LinkRow({
   onDelete,
   onQR,
   onToggleActive,
+  sparklinePoints,
+  sparklineLoading,
 }) {
   const shortUrl = `${window.location.origin}/go/${link.slug}`;
   const isDeleting = link._deleting;
@@ -114,9 +117,12 @@ export default function LinkRow({
 
       {/* Clicks */}
       <td className="px-4 py-3 text-center">
-        <div className="flex items-center justify-center gap-1 text-text-secondary text-sm">
-          <BarChart3 className="w-3.5 h-3.5" />
-          {link.clicksCount ?? 0}
+        <div className="flex flex-col items-center justify-center gap-1.5 text-text-secondary text-sm">
+          <div className="flex items-center justify-center gap-1">
+            <BarChart3 className="w-3.5 h-3.5" />
+            {link.clicksCount ?? 0}
+          </div>
+          <LinkSparkline points={sparklinePoints} loading={sparklineLoading} />
         </div>
       </td>
 

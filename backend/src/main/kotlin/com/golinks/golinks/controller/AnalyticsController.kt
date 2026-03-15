@@ -84,6 +84,12 @@ class AnalyticsController(
         @RequestParam(required = false) from: String?,
         @RequestParam(required = false) to: String?,
         @RequestParam(required = false) slug: String?,
+        @RequestParam(required = false) continent: String?,
+        @RequestParam(required = false) country: String?,
+        @RequestParam(required = false) os: String?,
+        @RequestParam(required = false) device: String?,
+        @RequestParam(defaultValue = "auto") granularity: String,
+        @RequestParam(defaultValue = "standard") resolution: String,
         @RequestParam(defaultValue = "25") limit: Int
     ): ResponseEntity<HeatmapResponse> {
         val userId = getCurrentUserId()
@@ -95,7 +101,59 @@ class AnalyticsController(
                 from = fromInstant,
                 to = toInstant,
                 slug = slug,
+                continent = continent,
+                country = country,
+                os = os,
+                device = device,
+                granularity = granularity,
+                resolution = resolution,
                 limit = limit.coerceIn(1, 100)
+            )
+        )
+    }
+
+    @GetMapping("/heatmap/options")
+    fun getHeatmapOptions(
+        @RequestParam(required = false) from: String?,
+        @RequestParam(required = false) to: String?,
+        @RequestParam(required = false) slug: String?,
+        @RequestParam(required = false) continent: String?,
+        @RequestParam(required = false) country: String?,
+        @RequestParam(required = false) os: String?,
+        @RequestParam(required = false) device: String?
+    ): ResponseEntity<HeatmapFilterOptionsResponse> {
+        val userId = getCurrentUserId()
+        val (fromInstant, toInstant) = parseDateRange(from, to)
+        return ResponseEntity.ok(
+            analyticsService.getHeatmapFilterOptions(
+                userId = userId,
+                from = fromInstant,
+                to = toInstant,
+                slug = slug,
+                continent = continent,
+                country = country,
+                os = os,
+                device = device
+            )
+        )
+    }
+
+    @GetMapping("/link-sparklines")
+    fun getLinkSparklines(
+        @RequestParam(required = false) from: String?,
+        @RequestParam(required = false) to: String?,
+        @RequestParam(required = false) slugs: List<String>?,
+        @RequestParam(defaultValue = "auto") granularity: String
+    ): ResponseEntity<LinkSparklinesResponse> {
+        val userId = getCurrentUserId()
+        val (fromInstant, toInstant) = parseDateRange(from, to)
+        return ResponseEntity.ok(
+            analyticsService.getLinkSparklines(
+                userId = userId,
+                from = fromInstant,
+                to = toInstant,
+                slugs = slugs ?: emptyList(),
+                granularity = granularity
             )
         )
     }

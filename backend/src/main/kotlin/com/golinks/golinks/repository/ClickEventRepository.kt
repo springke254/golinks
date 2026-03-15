@@ -31,6 +31,16 @@ interface HeatmapRollupProjection {
     fun getClicks(): Long
 }
 
+interface HeatmapTileRollupProjection {
+    fun getOwnerUserId(): UUID
+    fun getSlug(): String
+    fun getBucketStart(): Instant
+    fun getCountry(): String
+    fun getOsName(): String
+    fun getDeviceType(): String
+    fun getClicks(): Long
+}
+
 interface SessionEventSliceProjection {
     fun getOwnerUserId(): UUID
     fun getVisitorId(): String
@@ -161,6 +171,29 @@ interface ClickEventRepository : JpaRepository<ClickEventEntity, UUID> {
         nativeQuery = true
     )
     fun findDeviceRollups(fromDate: Instant, toDate: Instant): List<HeatmapRollupProjection>
+
+    @Query(
+        value = """
+            SELECT ce.owner_user_id AS ownerUserId,
+                   ce.slug AS slug,
+                   DATE_TRUNC('hour', ce.created_at) AS bucketStart,
+                   COALESCE(NULLIF(ce.country, ''), 'ZZ') AS country,
+                   COALESCE(NULLIF(ce.os_name, ''), 'Other') AS osName,
+                   COALESCE(NULLIF(ce.device_type, ''), 'Desktop') AS deviceType,
+                   COUNT(*) AS clicks
+            FROM click_events ce
+            WHERE ce.owner_user_id IS NOT NULL
+              AND ce.created_at BETWEEN :fromDate AND :toDate
+            GROUP BY ce.owner_user_id,
+                     ce.slug,
+                     DATE_TRUNC('hour', ce.created_at),
+                     COALESCE(NULLIF(ce.country, ''), 'ZZ'),
+                     COALESCE(NULLIF(ce.os_name, ''), 'Other'),
+                     COALESCE(NULLIF(ce.device_type, ''), 'Desktop')
+        """,
+        nativeQuery = true
+    )
+    fun findTileRollups(fromDate: Instant, toDate: Instant): List<HeatmapTileRollupProjection>
 
     @Query(
         value = """

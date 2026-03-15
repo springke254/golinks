@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link2, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+import dayjs from 'dayjs';
 import LinkRow from './LinkRow';
 import LinkCard from './LinkCard';
 import LinkFilters from './LinkFilters';
@@ -11,6 +12,7 @@ import QRCodeModal from './QRCodeModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import Skeleton from '../ui/Skeleton';
 import { useLinksPage, useUpdateLink, useDeleteLink, useBulkDeleteLinks } from '../../hooks/useLinks';
+import { useAnalyticsLinkSparklines } from '../../hooks/useAnalytics';
 
 const PAGE_SIZE = 20;
 
@@ -37,6 +39,40 @@ export default function LinkList() {
   const allLinks = useMemo(() => data?.items ?? [], [data]);
   const totalPages = data?.totalPages ?? 0;
   const currentPage = data?.page ?? page;
+
+  const sparklineWindow = useMemo(
+    () => ({
+      from: dayjs().subtract(30, 'day').startOf('day').toISOString(),
+      to: dayjs().endOf('day').toISOString(),
+    }),
+    []
+  );
+
+  const visibleSlugs = useMemo(
+    () => allLinks.map((link) => link.slug).filter(Boolean),
+    [allLinks]
+  );
+
+  const {
+    data: sparklineData,
+    isFetching: sparklineFetching,
+  } = useAnalyticsLinkSparklines(
+    sparklineWindow.from,
+    sparklineWindow.to,
+    visibleSlugs,
+    {
+      granularity: 'daily',
+      enabled: visibleSlugs.length > 0,
+    }
+  );
+
+  const sparklineBySlug = useMemo(() => {
+    const map = {};
+    (sparklineData?.series || []).forEach((series) => {
+      map[series.slug] = series.points || [];
+    });
+    return map;
+  }, [sparklineData]);
 
   const pageNumbers = useMemo(() => {
     if (totalPages <= 1) return [];
@@ -244,6 +280,8 @@ export default function LinkList() {
                     onDelete={handleDeleteClick}
                     onQR={setQrLink}
                     onToggleActive={handleToggleActive}
+                    sparklinePoints={sparklineBySlug[link.slug] || []}
+                    sparklineLoading={sparklineFetching && !sparklineBySlug[link.slug]}
                   />
                 ))}
               </tbody>
@@ -277,6 +315,8 @@ export default function LinkList() {
                 onDelete={handleDeleteClick}
                 onQR={setQrLink}
                 onToggleActive={handleToggleActive}
+                sparklinePoints={sparklineBySlug[link.slug] || []}
+                sparklineLoading={sparklineFetching && !sparklineBySlug[link.slug]}
               />
             ))}
           </AnimatePresence>

@@ -31,6 +31,25 @@ export const getAnalyticsHeatmap = async (params = {}) => {
   return data;
 };
 
+export const getAnalyticsHeatmapOptions = async (params = {}) => {
+  const { data } = await api.get(API.ANALYTICS.HEATMAP_OPTIONS, { params });
+  return data;
+};
+
+export const getAnalyticsLinkSparklines = async (params = {}) => {
+  const { slugs = [], ...rest } = params;
+  const { data } = await api.get(API.ANALYTICS.LINK_SPARKLINES, {
+    params: {
+      ...rest,
+      slugs,
+    },
+    paramsSerializer: {
+      indexes: null,
+    },
+  });
+  return data;
+};
+
 export const getAnalyticsSessions = async (params = {}) => {
   const { data } = await api.get(API.ANALYTICS.SESSIONS, { params });
   return data;

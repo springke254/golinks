@@ -1,11 +1,14 @@
 package com.golinks.golinks.service
 
 import com.golinks.golinks.entity.AnalyticsHeatmapHourly
+import com.golinks.golinks.entity.AnalyticsHeatmapTileHourly
 import com.golinks.golinks.entity.AnalyticsSessionSummary
 import com.golinks.golinks.repository.AnalyticsHeatmapHourlyRepository
+import com.golinks.golinks.repository.AnalyticsHeatmapTileHourlyRepository
 import com.golinks.golinks.repository.AnalyticsSessionSummaryRepository
 import com.golinks.golinks.repository.ClickEventRepository
 import com.golinks.golinks.repository.HeatmapRollupProjection
+import com.golinks.golinks.repository.HeatmapTileRollupProjection
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -19,6 +22,7 @@ import java.util.UUID
 class AnalyticsAggregationService(
     private val clickEventRepository: ClickEventRepository,
     private val heatmapRepository: AnalyticsHeatmapHourlyRepository,
+    private val heatmapTileRepository: AnalyticsHeatmapTileHourlyRepository,
     private val sessionSummaryRepository: AnalyticsSessionSummaryRepository,
     @Value("\${app.analytics.rollup-enabled:true}")
     private val rollupEnabled: Boolean,
@@ -51,6 +55,7 @@ class AnalyticsAggregationService(
 
     private fun rebuildHeatmapRollups(from: Instant, to: Instant) {
         heatmapRepository.deleteByBucketRange(from, to)
+        heatmapTileRepository.deleteByBucketRange(from, to)
 
         val rows = mutableListOf<AnalyticsHeatmapHourly>()
         rows += clickEventRepository.findCountryRollups(from, to)
@@ -62,6 +67,13 @@ class AnalyticsAggregationService(
 
         if (rows.isNotEmpty()) {
             heatmapRepository.saveAll(rows)
+        }
+
+        val tileRows = clickEventRepository.findTileRollups(from, to)
+            .map { toHeatmapTileEntity(it) }
+
+        if (tileRows.isNotEmpty()) {
+            heatmapTileRepository.saveAll(tileRows)
         }
     }
 
@@ -75,6 +87,30 @@ class AnalyticsAggregationService(
             clicks = row.getClicks(),
             updatedAt = Instant.now()
         )
+    }
+
+    private fun toHeatmapTileEntity(row: HeatmapTileRollupProjection): AnalyticsHeatmapTileHourly {
+        val normalizedCountry = normalizeCountry(row.getCountry())
+        return AnalyticsHeatmapTileHourly(
+            ownerUserId = row.getOwnerUserId(),
+            slug = row.getSlug(),
+            bucketStart = row.getBucketStart(),
+            country = normalizedCountry,
+            continent = CountryContinentResolver.resolve(normalizedCountry),
+            osName = row.getOsName().ifBlank { "Other" }.take(64),
+            deviceType = row.getDeviceType().ifBlank { "Desktop" }.take(20),
+            clicks = row.getClicks(),
+            updatedAt = Instant.now()
+        )
+    }
+
+    private fun normalizeCountry(country: String?): String {
+        val normalized = country?.trim()?.uppercase().orEmpty()
+        return if (normalized.length == 2 && normalized.all { it in 'A'..'Z' }) {
+            normalized
+        } else {
+            "ZZ"
+        }
     }
 
     private fun rebuildSessionSummaries(from: Instant, to: Instant) {

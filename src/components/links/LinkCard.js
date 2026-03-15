@@ -19,6 +19,7 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import Badge from '../ui/Badge';
 import CopyButton from '../ui/CopyButton';
+import LinkSparkline from './LinkSparkline';
 import { cn } from '../../utils/cn';
 
 dayjs.extend(relativeTime);
@@ -31,6 +32,8 @@ export default function LinkCard({
   onDelete,
   onQR,
   onToggleActive,
+  sparklinePoints,
+  sparklineLoading,
 }) {
   const shortUrl = `${window.location.origin}/go/${link.slug}`;
   const isDeleting = link._deleting;
@@ -132,11 +135,12 @@ export default function LinkCard({
       )}
 
       {/* Stats row */}
-      <div className="flex items-center justify-between text-xs text-text-muted">
+      <div className="flex items-center justify-between text-xs text-text-muted gap-2">
         <div className="flex items-center gap-1">
           <BarChart3 className="w-3.5 h-3.5" />
           <span>{link.clicksCount ?? 0} clicks</span>
         </div>
+        <LinkSparkline points={sparklinePoints} loading={sparklineLoading} className="w-20" />
         <span title={link.createdAt}>{dayjs(link.createdAt).fromNow()}</span>
       </div>
 

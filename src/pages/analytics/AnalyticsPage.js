@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   BarChart3,
   MousePointerClick,
@@ -13,6 +14,7 @@ import {
   Smartphone,
   Tablet,
   Terminal,
+  Bot,
   Clock3,
 } from 'lucide-react';
 import dayjs from 'dayjs';
@@ -33,10 +35,12 @@ import {
   useAnalyticsReferrers,
   useAnalyticsTopLinks,
   useAnalyticsHeatmapAvailability,
+  useAnalyticsHeatmapOptions,
   useAnalyticsHeatmap,
   useAnalyticsSessions,
   useAnalyticsSessionEvents,
 } from '../../hooks/useAnalytics';
+import * as analyticsService from '../../services/analyticsService';
 import Skeleton from '../../components/ui/Skeleton';
 
 dayjs.extend(relativeTime);
@@ -45,6 +49,7 @@ const RANGE_OPTIONS = [
   { label: '7d', days: 7 },
   { label: '30d', days: 30 },
   { label: '90d', days: 90 },
+  { label: '180d', days: 180 },
 ];
 
 const container = {
@@ -82,19 +87,48 @@ function formatDuration(seconds = 0) {
 
 function getOsIcon(osName) {
   const value = String(osName || '').toLowerCase();
+  if (value.includes('bot') || value.includes('crawl') || value.includes('spider')) return Bot;
   if (value.includes('ios') || value.includes('mac')) return Apple;
   if (value.includes('android')) return Smartphone;
   if (value.includes('windows')) return Monitor;
-  if (value.includes('linux') || value.includes('chrome os')) return Terminal;
+  if (
+    value.includes('linux') ||
+    value.includes('ubuntu') ||
+    value.includes('debian') ||
+    value.includes('fedora') ||
+    value.includes('chrome os')
+  ) {
+    return Terminal;
+  }
   return Globe;
 }
 
 function getDeviceIcon(deviceType) {
   const value = String(deviceType || '').toLowerCase();
+  if (value.includes('bot')) return Bot;
   if (value.includes('mobile')) return Smartphone;
   if (value.includes('tablet')) return Tablet;
   if (value.includes('desktop')) return Monitor;
   return Globe;
+}
+
+function normalizeFilterValue(value) {
+  const normalized = String(value || '').trim();
+  return normalized ? normalized : undefined;
+}
+
+function getIdleScheduler() {
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    return {
+      schedule: (cb) => window.requestIdleCallback(cb, { timeout: 1200 }),
+      cancel: (id) => window.cancelIdleCallback(id),
+    };
+  }
+
+  return {
+    schedule: (cb) => setTimeout(cb, 250),
+    cancel: (id) => clearTimeout(id),
+  };
 }
 
 function FreshnessBadge({ updatedAt, fallback = 'Warming up' }) {
@@ -112,17 +146,40 @@ function FreshnessBadge({ updatedAt, fallback = 'Warming up' }) {
 export default function AnalyticsPage() {
   const SESSIONS_PAGE_SIZE = 8;
   const SESSION_EVENTS_PAGE_SIZE = 20;
+  const queryClient = useQueryClient();
 
   const [rangeDays, setRangeDays] = useState(30);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
   const [sessionsPage, setSessionsPage] = useState(0);
   const [sessionEventsPage, setSessionEventsPage] = useState(0);
+  const [globalFilters, setGlobalFilters] = useState({
+    continent: '',
+    country: '',
+    os: '',
+    device: '',
+  });
+  const [isCompactResolution, setIsCompactResolution] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+  );
 
   const { from, to } = useMemo(() => {
     const toDate = dayjs().endOf('day').toISOString();
     const fromDate = dayjs().subtract(rangeDays, 'day').startOf('day').toISOString();
     return { from: fromDate, to: toDate };
   }, [rangeDays]);
+
+  const heatmapFilters = useMemo(
+    () => ({
+      continent: normalizeFilterValue(globalFilters.continent),
+      country: normalizeFilterValue(globalFilters.country),
+      os: normalizeFilterValue(globalFilters.os),
+      device: normalizeFilterValue(globalFilters.device),
+    }),
+    [globalFilters]
+  );
+
+  const heatmapGranularity = useMemo(() => (rangeDays >= 75 ? 'daily' : 'auto'), [rangeDays]);
+  const heatmapResolution = isCompactResolution ? 'compact' : 'standard';
 
   const {
     data: summary,
@@ -146,23 +203,51 @@ export default function AnalyticsPage() {
   } = useAnalyticsTopLinks(from, to);
   const {
     data: heatmapAvailability,
+    isLoading: heatmapAvailabilityLoading,
+    isFetching: heatmapAvailabilityFetching,
     dataUpdatedAt: heatmapAvailabilityFetchedAt,
   } = useAnalyticsHeatmapAvailability(from, to);
   const {
+    data: heatmapOptions,
+    isLoading: heatmapOptionsLoading,
+    isFetching: heatmapOptionsFetching,
+  } = useAnalyticsHeatmapOptions(from, to, heatmapFilters, 50, true);
+
+  const heatmapsReady = !!heatmapAvailability?.ready;
+
+  const {
     data: countryHeatmap,
     isLoading: countryLoading,
+    isFetching: countryFetching,
     dataUpdatedAt: countryFetchedAt,
-  } = useAnalyticsHeatmap('country', from, to);
+  } = useAnalyticsHeatmap('country', from, to, {
+    ...heatmapFilters,
+    granularity: heatmapGranularity,
+    resolution: heatmapResolution,
+    enabled: heatmapsReady,
+  });
   const {
     data: osHeatmap,
     isLoading: osLoading,
+    isFetching: osFetching,
     dataUpdatedAt: osFetchedAt,
-  } = useAnalyticsHeatmap('os', from, to);
+  } = useAnalyticsHeatmap('os', from, to, {
+    ...heatmapFilters,
+    granularity: heatmapGranularity,
+    resolution: heatmapResolution,
+    enabled: heatmapsReady,
+  });
   const {
     data: deviceHeatmap,
     isLoading: deviceLoading,
+    isFetching: deviceFetching,
     dataUpdatedAt: deviceFetchedAt,
-  } = useAnalyticsHeatmap('device', from, to);
+  } = useAnalyticsHeatmap('device', from, to, {
+    ...heatmapFilters,
+    granularity: heatmapGranularity,
+    resolution: heatmapResolution,
+    enabled: heatmapsReady,
+  });
   const {
     data: sessions,
     isLoading: sessionsLoading,
@@ -180,6 +265,125 @@ export default function AnalyticsPage() {
   );
 
   const sessionItems = useMemo(() => sessions?.items || [], [sessions]);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsCompactResolution(window.innerWidth < 1024);
+    }
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const countryKeys = new Set((heatmapOptions?.countries || []).map((entry) => entry.key));
+    const continentKeys = new Set((heatmapOptions?.continents || []).map((entry) => entry.key));
+    const osKeys = new Set((heatmapOptions?.os || []).map((entry) => entry.key));
+    const deviceKeys = new Set((heatmapOptions?.devices || []).map((entry) => entry.key));
+
+    setGlobalFilters((current) => {
+      const next = { ...current };
+      let changed = false;
+
+      if (next.country && !countryKeys.has(next.country)) {
+        next.country = '';
+        changed = true;
+      }
+      if (next.continent && !continentKeys.has(next.continent)) {
+        next.continent = '';
+        changed = true;
+      }
+      if (next.os && !osKeys.has(next.os)) {
+        next.os = '';
+        changed = true;
+      }
+      if (next.device && !deviceKeys.has(next.device)) {
+        next.device = '';
+        changed = true;
+      }
+
+      return changed ? next : current;
+    });
+  }, [heatmapOptions]);
+
+  useEffect(() => {
+    const wsId = localStorage.getItem('golinks_active_workspace_id');
+    if (!wsId) return undefined;
+
+    const previousFrom = dayjs(from).subtract(rangeDays, 'day').toISOString();
+    const previousTo = dayjs(to).subtract(rangeDays, 'day').toISOString();
+    const nextFrom = dayjs(from).add(rangeDays, 'day').toISOString();
+    const nextTo = dayjs(to).add(rangeDays, 'day').toISOString();
+
+    const scheduler = getIdleScheduler();
+    const taskId = scheduler.schedule(() => {
+      const ranges = [
+        { from: previousFrom, to: previousTo },
+        { from: nextFrom, to: nextTo },
+      ];
+
+      ranges.forEach((range) => {
+        queryClient.prefetchQuery({
+          queryKey: ['analytics-timeseries', wsId, range.from, range.to],
+          queryFn: () => analyticsService.getAnalyticsTimeSeries({ from: range.from, to: range.to }),
+          staleTime: 60_000,
+        });
+
+        queryClient.prefetchQuery({
+          queryKey: ['analytics-heatmap-availability', wsId, range.from, range.to],
+          queryFn: () => analyticsService.getAnalyticsHeatmapAvailability({ from: range.from, to: range.to }),
+          staleTime: 60_000,
+        });
+
+        ['country', 'os', 'device'].forEach((dimension) => {
+          queryClient.prefetchQuery({
+            queryKey: [
+              'analytics-heatmap',
+              wsId,
+              dimension,
+              range.from,
+              range.to,
+              null,
+              heatmapFilters.continent || null,
+              heatmapFilters.country || null,
+              heatmapFilters.os || null,
+              heatmapFilters.device || null,
+              heatmapGranularity,
+              heatmapResolution,
+              25,
+            ],
+            queryFn: () =>
+              analyticsService.getAnalyticsHeatmap({
+                dimension,
+                from: range.from,
+                to: range.to,
+                ...(heatmapFilters.continent ? { continent: heatmapFilters.continent } : {}),
+                ...(heatmapFilters.country ? { country: heatmapFilters.country } : {}),
+                ...(heatmapFilters.os ? { os: heatmapFilters.os } : {}),
+                ...(heatmapFilters.device ? { device: heatmapFilters.device } : {}),
+                granularity: heatmapGranularity,
+                resolution: heatmapResolution,
+                limit: 25,
+              }),
+            staleTime: 60_000,
+          });
+        });
+      });
+    });
+
+    return () => scheduler.cancel(taskId);
+  }, [
+    from,
+    to,
+    rangeDays,
+    queryClient,
+    heatmapFilters.continent,
+    heatmapFilters.country,
+    heatmapFilters.os,
+    heatmapFilters.device,
+    heatmapGranularity,
+    heatmapResolution,
+  ]);
 
   useEffect(() => {
     setSessionsPage(0);
@@ -290,6 +494,22 @@ export default function AnalyticsPage() {
   const canNextSessionEvents =
     sessionEventsTotalPages > 0 && sessionEventsPage + 1 < sessionEventsTotalPages;
 
+  const continentOptions = heatmapOptions?.continents || [];
+  const countryOptions = heatmapOptions?.countries || [];
+  const osOptions = heatmapOptions?.os || [];
+  const deviceOptions = heatmapOptions?.devices || [];
+
+  const activeFilterCount = [
+    globalFilters.continent,
+    globalFilters.country,
+    globalFilters.os,
+    globalFilters.device,
+  ].filter(Boolean).length;
+
+  const heatmapsBlocked = !heatmapAvailabilityLoading && !heatmapsReady;
+  const heatmapUpdating =
+    heatmapAvailabilityFetching || countryFetching || osFetching || deviceFetching;
+
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
       {/* Header + Range Picker */}
@@ -322,6 +542,126 @@ export default function AnalyticsPage() {
               {opt.label}
             </button>
           ))}
+        </div>
+      </motion.div>
+
+      <motion.div variants={item} className="bg-dark-card border-2 border-border-strong p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-text-secondary">Global Heatmap Filters</p>
+          <div className="flex items-center gap-2">
+            {heatmapOptionsLoading || heatmapOptionsFetching ? (
+              <span className="text-[11px] text-text-muted font-semibold">Refreshing filters...</span>
+            ) : null}
+            {activeFilterCount > 0 ? (
+              <button
+                onClick={() =>
+                  setGlobalFilters({
+                    continent: '',
+                    country: '',
+                    os: '',
+                    device: '',
+                  })
+                }
+                className="px-2 py-1 text-[11px] font-semibold border border-border-strong bg-dark-elevated text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Clear ({activeFilterCount})
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          <label className="space-y-1">
+            <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+              Continent
+            </span>
+            <select
+              value={globalFilters.continent}
+              onChange={(e) =>
+                setGlobalFilters((current) => ({
+                  ...current,
+                  continent: e.target.value,
+                }))
+              }
+              className="w-full bg-dark-elevated border-2 border-border-strong px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary"
+            >
+              <option value="">All continents</option>
+              {continentOptions.map((option) => (
+                <option key={`continent-${option.key}`} value={option.key}>
+                  {option.key} ({option.clicks.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+              Country
+            </span>
+            <select
+              value={globalFilters.country}
+              onChange={(e) =>
+                setGlobalFilters((current) => ({
+                  ...current,
+                  country: e.target.value,
+                }))
+              }
+              className="w-full bg-dark-elevated border-2 border-border-strong px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary"
+            >
+              <option value="">All countries</option>
+              {countryOptions.map((option) => (
+                <option key={`country-${option.key}`} value={option.key}>
+                  {option.key} ({option.clicks.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+              OS
+            </span>
+            <select
+              value={globalFilters.os}
+              onChange={(e) =>
+                setGlobalFilters((current) => ({
+                  ...current,
+                  os: e.target.value,
+                }))
+              }
+              className="w-full bg-dark-elevated border-2 border-border-strong px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary"
+            >
+              <option value="">All operating systems</option>
+              {osOptions.map((option) => (
+                <option key={`os-option-${option.key}`} value={option.key}>
+                  {option.key} ({option.clicks.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="space-y-1">
+            <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">
+              Device
+            </span>
+            <select
+              value={globalFilters.device}
+              onChange={(e) =>
+                setGlobalFilters((current) => ({
+                  ...current,
+                  device: e.target.value,
+                }))
+              }
+              className="w-full bg-dark-elevated border-2 border-border-strong px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary"
+            >
+              <option value="">All devices</option>
+              {deviceOptions.map((option) => (
+                <option key={`device-option-${option.key}`} value={option.key}>
+                  {option.key} ({option.clicks.toLocaleString()})
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </motion.div>
 
@@ -525,145 +865,196 @@ export default function AnalyticsPage() {
       {/* Heatmaps (pre-aggregated) */}
       <motion.div variants={item} className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-text-secondary flex items-center gap-2">
-            <BarChart3 className="w-4 h-4 text-primary" />
-            Heatmaps
-          </h2>
-          <FreshnessBadge updatedAt={heatmapFreshness} fallback="Aggregates warming up" />
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-sm font-semibold text-text-secondary flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              Heatmaps
+            </h2>
+            <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-text-muted border border-border-strong bg-dark-elevated">
+              {heatmapGranularity === 'daily' ? 'Daily aggregate' : 'Hourly aggregate'}
+            </span>
+            <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-text-muted border border-border-strong bg-dark-elevated">
+              {heatmapResolution === 'compact' ? 'Compact tiles' : 'Standard tiles'}
+            </span>
+            {heatmapUpdating ? (
+              <span className="inline-flex items-center px-2 py-1 text-[11px] font-semibold text-primary border border-primary/40 bg-primary/10">
+                Updating
+              </span>
+            ) : null}
+          </div>
+          <FreshnessBadge
+            updatedAt={heatmapFreshness}
+            fallback={heatmapAvailability?.notReadyReason || 'Aggregates warming up'}
+          />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="bg-dark-card border-2 border-border-strong p-5">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="text-sm font-semibold text-text-secondary">Country Density</h3>
-              <FreshnessBadge updatedAt={countryFreshness} fallback="Warming up" />
-            </div>
-            {countryLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-9 w-full" />
-                ))}
+        {heatmapAvailabilityLoading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, index) => (
+              <div key={`heatmap-load-${index}`} className="bg-dark-card border-2 border-border-strong p-5">
+                <Skeleton className="h-5 w-24 mb-4" />
+                <div className="space-y-3">
+                  {[...Array(5)].map((__, rowIndex) => (
+                    <Skeleton key={`heatmap-row-${index}-${rowIndex}`} className="h-9 w-full" />
+                  ))}
+                </div>
               </div>
-            ) : !countryTotals.length ? (
-              <p className="text-text-muted text-sm py-8 text-center">No country heatmap data yet.</p>
-            ) : (
-              <div className="space-y-1">
-                {countryTotals.map((bucket) => {
-                  const max = countryTotals[0]?.clicks || 1;
-                  const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
-                  return (
-                    <div
-                      key={`country-${bucket.key}`}
-                      className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
-                    >
-                      <div
-                        className="absolute inset-y-0 left-0 bg-primary/10"
-                        style={{ width: `${pct}%` }}
-                      />
-                      <div className="relative flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Globe className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                          <span className="text-sm text-text-primary truncate">{bucket.key}</span>
-                        </div>
-                        <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
-                          {bucket.clicks.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            ))}
           </div>
+        ) : heatmapsBlocked ? (
+          <div className="bg-dark-card border-2 border-border-strong p-8 text-center">
+            <p className="text-sm text-text-secondary font-semibold">Aggregates are still warming up</p>
+            <p className="text-xs text-text-muted mt-1">
+              {heatmapAvailability?.notReadyReason ||
+                'Fresh windows are computed in the background. Try again in a minute.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="bg-dark-card border-2 border-border-strong p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-text-secondary">Country Density</h3>
+                <FreshnessBadge updatedAt={countryFreshness} fallback="Warming up" />
+              </div>
+              {countryLoading && !countryTotals.length ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-9 w-full" />
+                  ))}
+                </div>
+              ) : !countryTotals.length ? (
+                <p className="text-text-muted text-sm py-8 text-center">
+                  {activeFilterCount
+                    ? 'No country heatmap data for the current filters.'
+                    : 'No country heatmap data yet.'}
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {countryTotals.map((bucket) => {
+                    const max = countryTotals[0]?.clicks || 1;
+                    const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
+                    return (
+                      <div
+                        key={`country-${bucket.key}`}
+                        className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
+                      >
+                        <div
+                          className="absolute inset-y-0 left-0 bg-primary/10"
+                          style={{ width: `${pct}%` }}
+                        />
+                        <div className="relative flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Globe className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                            <span className="text-sm text-text-primary truncate">{bucket.key}</span>
+                          </div>
+                          <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
+                            {bucket.clicks.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-          <div className="bg-dark-card border-2 border-border-strong p-5">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="text-sm font-semibold text-text-secondary">OS Density</h3>
-              <FreshnessBadge updatedAt={osFreshness} fallback="Warming up" />
-            </div>
-            {osLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-9 w-full" />
-                ))}
+            <div className="bg-dark-card border-2 border-border-strong p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-text-secondary">OS Density</h3>
+                <FreshnessBadge updatedAt={osFreshness} fallback="Warming up" />
               </div>
-            ) : !osTotals.length ? (
-              <p className="text-text-muted text-sm py-8 text-center">No OS heatmap data yet.</p>
-            ) : (
-              <div className="space-y-1">
-                {osTotals.map((bucket) => {
-                  const max = osTotals[0]?.clicks || 1;
-                  const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
-                  const Icon = getOsIcon(bucket.key);
-                  return (
-                    <div
-                      key={`os-${bucket.key}`}
-                      className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
-                    >
+              {osLoading && !osTotals.length ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-9 w-full" />
+                  ))}
+                </div>
+              ) : !osTotals.length ? (
+                <p className="text-text-muted text-sm py-8 text-center">
+                  {activeFilterCount
+                    ? 'No OS heatmap data for the current filters.'
+                    : 'No OS heatmap data yet.'}
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {osTotals.map((bucket) => {
+                    const max = osTotals[0]?.clicks || 1;
+                    const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
+                    const Icon = getOsIcon(bucket.key);
+                    return (
                       <div
-                        className="absolute inset-y-0 left-0 bg-primary/10"
-                        style={{ width: `${pct}%` }}
-                      />
-                      <div className="relative flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Icon className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                          <span className="text-sm text-text-primary truncate">{bucket.key}</span>
+                        key={`os-${bucket.key}`}
+                        className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
+                      >
+                        <div
+                          className="absolute inset-y-0 left-0 bg-primary/10"
+                          style={{ width: `${pct}%` }}
+                        />
+                        <div className="relative flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Icon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                            <span className="text-sm text-text-primary truncate">{bucket.key}</span>
+                          </div>
+                          <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
+                            {bucket.clicks.toLocaleString()}
+                          </span>
                         </div>
-                        <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
-                          {bucket.clicks.toLocaleString()}
-                        </span>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
-          <div className="bg-dark-card border-2 border-border-strong p-5">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <h3 className="text-sm font-semibold text-text-secondary">Device Density</h3>
-              <FreshnessBadge updatedAt={deviceFreshness} fallback="Warming up" />
-            </div>
-            {deviceLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-9 w-full" />
-                ))}
+            <div className="bg-dark-card border-2 border-border-strong p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-text-secondary">Device Density</h3>
+                <FreshnessBadge updatedAt={deviceFreshness} fallback="Warming up" />
               </div>
-            ) : !deviceTotals.length ? (
-              <p className="text-text-muted text-sm py-8 text-center">No device heatmap data yet.</p>
-            ) : (
-              <div className="space-y-1">
-                {deviceTotals.map((bucket) => {
-                  const max = deviceTotals[0]?.clicks || 1;
-                  const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
-                  const Icon = getDeviceIcon(bucket.key);
-                  return (
-                    <div
-                      key={`device-${bucket.key}`}
-                      className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
-                    >
+              {deviceLoading && !deviceTotals.length ? (
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-9 w-full" />
+                  ))}
+                </div>
+              ) : !deviceTotals.length ? (
+                <p className="text-text-muted text-sm py-8 text-center">
+                  {activeFilterCount
+                    ? 'No device heatmap data for the current filters.'
+                    : 'No device heatmap data yet.'}
+                </p>
+              ) : (
+                <div className="space-y-1">
+                  {deviceTotals.map((bucket) => {
+                    const max = deviceTotals[0]?.clicks || 1;
+                    const pct = Math.max(8, Math.round((bucket.clicks / max) * 100));
+                    const Icon = getDeviceIcon(bucket.key);
+                    return (
                       <div
-                        className="absolute inset-y-0 left-0 bg-primary/10"
-                        style={{ width: `${pct}%` }}
-                      />
-                      <div className="relative flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Icon className="w-3.5 h-3.5 text-text-muted shrink-0" />
-                          <span className="text-sm text-text-primary truncate">{bucket.key}</span>
+                        key={`device-${bucket.key}`}
+                        className="relative px-3 py-2.5 hover:bg-dark-elevated transition-colors"
+                      >
+                        <div
+                          className="absolute inset-y-0 left-0 bg-primary/10"
+                          style={{ width: `${pct}%` }}
+                        />
+                        <div className="relative flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Icon className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                            <span className="text-sm text-text-primary truncate">{bucket.key}</span>
+                          </div>
+                          <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
+                            {bucket.clicks.toLocaleString()}
+                          </span>
                         </div>
-                        <span className="text-sm font-bold text-text-secondary ml-3 shrink-0">
-                          {bucket.clicks.toLocaleString()}
-                        </span>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </motion.div>
 
       {/* Session-level analytics */}
@@ -760,10 +1151,16 @@ export default function AnalyticsPage() {
                       <span className="px-2 py-1 border border-border-strong bg-dark-card">
                         Visitor {selectedSession.visitorId?.slice(0, 8)}
                       </span>
-                      <span className="px-2 py-1 border border-border-strong bg-dark-card">
+                      <span className="px-2 py-1 border border-border-strong bg-dark-card inline-flex items-center gap-1">
+                        {React.createElement(getOsIcon(selectedSession.osName), {
+                          className: 'w-3.5 h-3.5',
+                        })}
                         {selectedSession.osName || 'Other'}
                       </span>
-                      <span className="px-2 py-1 border border-border-strong bg-dark-card">
+                      <span className="px-2 py-1 border border-border-strong bg-dark-card inline-flex items-center gap-1">
+                        {React.createElement(getDeviceIcon(selectedSession.deviceType), {
+                          className: 'w-3.5 h-3.5',
+                        })}
                         {selectedSession.deviceType || 'Unknown'}
                       </span>
                       <span className="px-2 py-1 border border-border-strong bg-dark-card">

@@ -153,6 +153,8 @@ data class HeatmapAvailabilityResponse(
     val earliestBucket: Instant?,
     val latestBucket: Instant?,
     val updatedAt: Instant?,
+    val recommendedGranularity: String,
+    val notReadyReason: String?,
     val periodFrom: Instant,
     val periodTo: Instant
 )
@@ -172,6 +174,39 @@ data class HeatmapResponse(
     val dimension: String,
     val data: List<HeatmapPointResponse>,
     val totals: List<HeatmapBucketTotalResponse>,
+    val periodFrom: Instant,
+    val periodTo: Instant,
+    val updatedAt: Instant?,
+    val granularity: String,
+    val resolution: String
+)
+
+data class HeatmapFilterOptionResponse(
+    val key: String,
+    val clicks: Long
+)
+
+data class HeatmapFilterOptionsResponse(
+    val continents: List<HeatmapFilterOptionResponse>,
+    val countries: List<HeatmapFilterOptionResponse>,
+    val os: List<HeatmapFilterOptionResponse>,
+    val devices: List<HeatmapFilterOptionResponse>,
+    val updatedAt: Instant?
+)
+
+data class LinkSparklinePointResponse(
+    val bucketStart: Instant,
+    val clicks: Long
+)
+
+data class LinkSparklineSeriesResponse(
+    val slug: String,
+    val points: List<LinkSparklinePointResponse>
+)
+
+data class LinkSparklinesResponse(
+    val series: List<LinkSparklineSeriesResponse>,
+    val granularity: String,
     val periodFrom: Instant,
     val periodTo: Instant,
     val updatedAt: Instant?
